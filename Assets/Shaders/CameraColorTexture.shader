@@ -2,54 +2,34 @@ Shader "Custom/CameraColorTexture"
 {
     Properties
     {
-        [MainColor] _BaseColor("Base Color", Color) = (1, 1, 1, 1)
-        [MainTexture] _BaseMap("Base Map", 2D) = "white"
+        _Color("Color", Color) = (0,0,0,1)
     }
 
     SubShader
     {
         Tags { "RenderType" = "Opaque" "RenderPipeline" = "UniversalPipeline" }
 
-        Pass
+        Pass    // カメラカラーと合成
         {
+            Name "CameraColorTexture"
+
             HLSLPROGRAM
-
-            #pragma vertex vert
-            #pragma fragment frag
-
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
 
-            struct Attributes
-            {
-                float4 positionOS : POSITION;
-                float2 uv : TEXCOORD0;
-            };
+            #pragma vertex Vert
+            #pragma fragment Frag
 
-            struct Varyings
-            {
-                float4 positionHCS : SV_POSITION;
-                float2 uv : TEXCOORD0;
-            };
+            CBUFFER_START(UnityPerMaterial)
+                float4 _Color;
+            CBUFFER_END
 
             TEXTURE2D_X(_CameraTexture);
 
-            CBUFFER_START(UnityPerMaterial)
-                half4 _BaseColor;
-                float4 _BaseMap_ST;
-            CBUFFER_END
-
-            Varyings vert(Attributes IN)
+            half4 Frag(Varyings input) : SV_TARGET
             {
-                Varyings OUT;
-                OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
-                OUT.uv = IN.uv;
-                return OUT;
-            }
-
-            half4 frag(Varyings IN) : SV_Target
-            {
-                // return SAMPLE_TEXTURE2D(_CameraTexture, sampler_LinearClamp, IN.uv) * _BaseColor;
-                return _BaseColor;
+                float2 uv = input.texcoord.xy;
+                return SAMPLE_TEXTURE2D_X(_CameraTexture, sampler_LinearClamp, uv) * _Color;
             }
             ENDHLSL
         }
