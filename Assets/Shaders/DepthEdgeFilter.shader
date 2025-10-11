@@ -73,17 +73,16 @@ Shader "Custom/DepthEdgeFilter"
 
             TEXTURE2D(_DepthEdgeTexture);
 
-            CBUFFER_START(UnityPerMaterial)
-                float4 _EdgeColor;
-                float _SamplingRange;
-                float _Sensitivity;
-                float _Threshold;
-            CBUFFER_END
-
             float4 Frag(Varyings input) : SV_Target
             {
                 float2 uv = input.texcoord;
-                return SAMPLE_TEXTURE2D(_DepthEdgeTexture, sampler_LinearClamp, uv);
+
+                half4 edge = SAMPLE_TEXTURE2D(_DepthEdgeTexture, sampler_LinearClamp, uv);
+                half4 camera = SAMPLE_TEXTURE2D(_BlitTexture, sampler_LinearClamp, uv);
+
+                float depthColor = edge.r + edge.g + edge.b;
+
+                return depthColor > 0 ? edge * camera : camera;
             }
             ENDHLSL
         }
