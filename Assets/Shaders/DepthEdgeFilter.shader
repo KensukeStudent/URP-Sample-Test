@@ -13,10 +13,12 @@ Shader "Custom/DepthEdgeFilter"
 
     SubShader
     {
-        Tags { "RenderPipeline" = "UniversalPipeline" }
+        Tags { "RenderType"="Opaque" "RenderPipeline" = "UniversalPipeline" }
 
         Pass
         {
+            Name "DepthEdge"
+
             HLSLPROGRAM
 
             #pragma vertex Vert
@@ -24,7 +26,6 @@ Shader "Custom/DepthEdgeFilter"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
-            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _EdgeColor;
@@ -55,6 +56,34 @@ Shader "Custom/DepthEdgeFilter"
                 edge = step(_Threshold, edge); // 輪郭黒・他白
                 return (1 - edge) * _EdgeColor;
                 return edge > 0 ? edge * _EdgeColor : float4(1, 1, 1, 1);
+            }
+            ENDHLSL
+        }
+
+        Pass
+        {
+            Name "Combine"
+
+            HLSLPROGRAM
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
+
+            #pragma vertex Vert
+            #pragma fragment Frag
+
+            TEXTURE2D(_DepthEdgeTexture);
+
+            CBUFFER_START(UnityPerMaterial)
+                float4 _EdgeColor;
+                float _SamplingRange;
+                float _Sensitivity;
+                float _Threshold;
+            CBUFFER_END
+
+            float4 Frag(Varyings input) : SV_Target
+            {
+                float2 uv = input.texcoord;
+                return SAMPLE_TEXTURE2D(_DepthEdgeTexture, sampler_LinearClamp, uv);
             }
             ENDHLSL
         }
