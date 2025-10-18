@@ -2,11 +2,13 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.Rendering.RenderGraphModule;
+using UnityEngine.Rendering.RendererUtils;
+using System.Collections.Generic;
 
 /// <summary>
-/// 深度を使ったエッジポストプロセス
+/// 法線を使ったエッジポストプロセス
 /// </summary>
-public class DepthBufferRenderFeature : ScriptableRendererFeature
+public class NormalBufferRenderFeature : ScriptableRendererFeature
 {
     [System.Serializable]
     public class Settings
@@ -16,12 +18,12 @@ public class DepthBufferRenderFeature : ScriptableRendererFeature
     }
 
     [SerializeField] private Settings settings = new Settings();
-    private DepthBufferRenderPass renderPass;
+    private NormalBufferRenderPass renderPass;
     private CombinePass combinePass;
 
     public override void Create()
     {
-        this.renderPass = new DepthBufferRenderPass(
+        this.renderPass = new NormalBufferRenderPass(
             this.settings.renderPassEvent,
             this.settings.material
         );
@@ -45,66 +47,122 @@ public class DepthBufferRenderFeature : ScriptableRendererFeature
         // Use Dispose for cleanup
     }
 
-    public class DepthBufferRenderPass : ScriptableRenderPass
+    public class NormalBufferRenderPass : ScriptableRenderPass
     {
         private Material material;
 
+        private List<ShaderTagId> shaderTagIds;
+
         private class PassData
         {
+            // 指定のshader pass描画
+            public RendererListHandle rendererListHandle;
+
             public TextureHandle sourceTextureHandle;
             public Material material;
         }
 
-        public DepthBufferRenderPass(RenderPassEvent renderPassEvent, Material material)
+        public NormalBufferRenderPass(RenderPassEvent renderPassEvent, Material material)
         {
             this.renderPassEvent = renderPassEvent;
             this.material = material;
+            this.profilingSampler = new ProfilingSampler(nameof(NormalBufferRenderPass));
 
-            this.profilingSampler = new ProfilingSampler(nameof(DepthBufferRenderPass));
+            // Target material shader pass names
+            this.shaderTagIds = new List<ShaderTagId>
+            {
+                new ShaderTagId("NormalEdge")
+            };
         }
 
         public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
         {
-            UniversalResourceData resourceData = frameData.Get<UniversalResourceData>();
-            UniversalCameraData cameraData = frameData.Get<UniversalCameraData>();
+            // Recording phase; add passes to RenderGraph
 
-            // TextureHandle for camera color RT
-            TextureHandle cameraDepthTextureHandle = resourceData.activeDepthTexture;
+            // FrameData objects
+            // ResourceData
+            UniversalResourceData resourceData = frameData.Get<UniversalResourceData>();
+            // RenderingData
+            UniversalRenderingData renderingData = frameData.Get<UniversalRenderingData>();
+            // CameraData
+            UniversalCameraData cameraData = frameData.Get<UniversalCameraData>();
+            // LightData
+            UniversalLightData lightData = frameData.Get<UniversalLightData>();
 
             // Camera RT descriptor
             RenderTextureDescriptor desc = cameraData.cameraTargetDescriptor;
-            desc.depthBufferBits = 0;
+            desc.colorFormat = RenderTextureFormat.ARGB32; // Enable alpha
             desc.msaaSamples = 1;
+            desc.depthBufferBits = 0;
 
-            // camera -> depthTexture
-            TextureHandle depthTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_DepthEdgeTexture", true);
+            TextureHandle activeColorTextureHandler = resourceData.activeColorTexture;
+
+            // TextureHandle for render target
+            // UniversalRenderer.CreateRenderGraphTexture is a helper method to create RenderGraph TextureHandle
+            TextureHandle normalTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_NormalTexture", true);
+
+            // Sorting criteria (default transparent)
+            SortingCriteria sortingCriteria = cameraData.defaultOpaqueSortFlags;
+
+            // Drawing settings
+            DrawingSettings drawingSettings = RenderingUtils.CreateDrawingSettings(this.shaderTagIds, renderingData, cameraData, lightData, sortingCriteria);
+
+            // RendererListHandle
+            var filteringSettings = new FilteringSettings(RenderQueueRange.opaque, -1);
+            RendererListParams rendererListParams = new RendererListParams(renderingData.cullResults, drawingSettings, filteringSettings);
+
+            // Pass to draw renderers
             using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
             {
-                builder.SetRenderAttachment(depthTextureHandle, 0, AccessFlags.Write);
-                builder.UseTexture(cameraDepthTextureHandle, AccessFlags.Read);
+                passData.rendererListHandle = renderGraph.CreateRendererList(rendererListParams);
+
+                // Set pass to use rendererListHandle
+                builder.UseRendererList(passData.rendererListHandle);
+
+                // Set render target (custom render target)
+                builder.SetRenderAttachment(normalTextureHandle, 0, AccessFlags.Write);
+
+                // Disable pass culling
+                // Passes are culled if no other passes access the write target
+                // For example, if only a shader accesses the render target texture (and not a separate pass),
+                // we need to disable pass culling to ensure this pass will always run
+                builder.AllowPassCulling(false);
+
+                // Set render function
+                builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
+                {
+                    RasterCommandBuffer cmd = graphContext.cmd;
+                    // Draw renderer list
+                    cmd.DrawRendererList(passData.rendererListHandle);
+                });
+            }
+
+            TextureHandle normalEdgeTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_NormalEdgeTexture", true);
+            using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
+            {
+                builder.SetRenderAttachment(normalEdgeTextureHandle, 0, AccessFlags.Write);
+                builder.UseTexture(normalTextureHandle, AccessFlags.Read);
 
                 // ShaderのGlobal変数への設定ができるように
                 // 要注意！
                 builder.AllowGlobalStateModification(true);
                 // 解説 *2
-                // negativeTextureHandleが描画された後に、"_NegativeTexture"という名前のGlobalTextureに設定する
-                builder.SetGlobalTextureAfterPass(depthTextureHandle, Shader.PropertyToID("_DepthEdgeTexture"));
+                // negativeTextureHandleが描画された後に、"_NormalEdgeTexture"という名前のGlobalTextureに設定する
+                builder.SetGlobalTextureAfterPass(normalEdgeTextureHandle, Shader.PropertyToID("_NormalEdgeTexture"));
 
                 // Resources/References for pass execution
                 // Blit source texture
-                passData.sourceTextureHandle = cameraDepthTextureHandle;
+                passData.sourceTextureHandle = normalTextureHandle;
                 // Blit material
                 passData.material = material;
 
                 // Set render function
-                builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) => ExecutePass(passData, graphContext));
+                builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
+                {
+                    RasterCommandBuffer cmd = graphContext.cmd;
+                    Blitter.BlitTexture(cmd, passData.sourceTextureHandle, new Vector4(1, 1, 0, 0), passData.material, 0);
+                });
             }
-        }
-
-        private static void ExecutePass(PassData passData, RasterGraphContext graphContext)
-        {
-            RasterCommandBuffer cmd = graphContext.cmd;
-            Blitter.BlitTexture(cmd, passData.sourceTextureHandle, new Vector4(1, 1, 0, 0), passData.material, 0);
         }
     }
 
@@ -152,7 +210,7 @@ public class DepthBufferRenderFeature : ScriptableRendererFeature
                 builder.UseTexture(sourceTextureHandle, AccessFlags.Read);
 
                 // GlobalTextureの使用宣言
-                builder.UseGlobalTexture(Shader.PropertyToID("_DepthEdgeTexture"), AccessFlags.Read);
+                builder.UseGlobalTexture(Shader.PropertyToID("_NormalEdgeTexture"), AccessFlags.Read);
 
                 // passDataに必要なデータを入れる
                 passData.Material = _material;
