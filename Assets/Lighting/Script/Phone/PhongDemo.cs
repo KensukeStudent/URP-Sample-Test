@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-public class NewMonoBehaviourScript : MonoBehaviour
+public class PhongDemo : MonoBehaviour
 {
     /// <summary>
     /// 法線ベクトル

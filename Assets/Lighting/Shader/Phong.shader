@@ -1,9 +1,11 @@
-Shader "Custom/Lambert"
+Shader "Custom/Phong"
 {
     Properties
     {
         [MainColor] _BaseColor("Base Color", Color) = (1, 1, 1, 1)
-        [MainTexture] _BaseMap("Base Map", 2D) = "white"
+        [MainTexture] _BaseMap("Base Map", 2D) = "white" {} // TODO: {}が無いと以下定義するとエラー発生する
+        
+        _SpecThreshold("Specular Threshold", Range(0.0, 10.0)) = 5.0
     }
 
     SubShader
@@ -31,6 +33,7 @@ Shader "Custom/Lambert"
             {
                 float4 positionHCS : SV_POSITION;
                 float2 uv : TEXCOORD0;
+                float3 positionWS : TEXCOORD1;
                 float3 normalWS : NORMAL;
             };
 
@@ -40,6 +43,8 @@ Shader "Custom/Lambert"
             CBUFFER_START(UnityPerMaterial)
                 half4 _BaseColor;
                 float4 _BaseMap_ST;
+                float _SpecularThreshold;
+                float _SpecThreshold;
             CBUFFER_END
 
             Varyings vert(Attributes IN)
@@ -48,6 +53,7 @@ Shader "Custom/Lambert"
                 OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
                 OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap);
                 OUT.normalWS = TransformObjectToWorldNormal(IN.normalOS);
+                OUT.positionWS = TransformObjectToWorld(IN.positionOS);
                 return OUT;
             }
 
@@ -57,12 +63,21 @@ Shader "Custom/Lambert"
 
                 Light mainLight;
                 mainLight = GetMainLight();
-                // ランバート反射モデル
-                float t = dot(IN.normalWS, mainLight.direction);
-                t = saturate(t);
-                color *= t;
 
-                return color;
+                // ランバート反射モデル
+                float diffuse = dot(IN.normalWS, mainLight.direction);
+                float3 diffuseLight = color * saturate(diffuse);
+
+                // フォン反射モデル
+                float3 reflectDir = mainLight.direction + 2 * dot(IN.normalWS, -mainLight.direction) * IN.normalWS;
+                float3 viewDir = normalize(IN.positionWS - _WorldSpaceCameraPos); // カメラからポリゴンへの方向
+                float specular = dot(reflectDir, viewDir);
+                float3 specularLight = color * pow(saturate(specular), _SpecThreshold); // 適当な鏡面反射の強さ
+
+                float3 finalLight = diffuseLight + specularLight;
+
+                half4 finalColor = half4(color.rgb * finalLight, color.a);
+                return finalColor;
             }
             ENDHLSL
         }
