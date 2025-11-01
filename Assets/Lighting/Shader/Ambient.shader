@@ -8,8 +8,7 @@ Shader "Custom/Ambient"
         [MainTexture] _BaseMap("Base Map", 2D) = "white" {} // TODO: {}が無いと以下定義するとエラー発生する
         
         _SpecThreshold("Specular Threshold", Range(0.0, 200.0)) = 5.0
-        _AmbientThreshold("Ambient Threshold", Range(0.0, 1.0)) = 0.5
-        _ClampThreshold("Clamp Threshold", Range(0.0, 0.5)) = 0.25
+        _FinalLightThreshold("Final Light Threshold", Range(0.0, 1.0)) = 0.3
     }
 
     SubShader
@@ -47,10 +46,8 @@ Shader "Custom/Ambient"
             CBUFFER_START(UnityPerMaterial)
                 half4 _BaseColor;
                 float4 _BaseMap_ST;
-                float _SpecularThreshold;
                 float _SpecThreshold;
-                float _AmbientThreshold;
-                float _ClampThreshold;
+                float _FinalLightThreshold;
             CBUFFER_END
 
             Varyings vert(Attributes IN)
@@ -65,25 +62,30 @@ Shader "Custom/Ambient"
 
             half4 frag(Varyings IN) : SV_Target
             {
-                half4 color = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv) * _BaseColor;
-
                 Light mainLight;
                 mainLight = GetMainLight();
-                half3 ambientColor = mainLight.color * _AmbientThreshold; // 環境光の色と強さを適当に設定
 
                 // ランバート反射モデル
                 float diffuse = dot(IN.normalWS, mainLight.direction);
-                float3 diffuseLight = ambientColor * clamp(diffuse, _ClampThreshold, 1); // diffuseの最小値をClampThresholdに設定
+                float3 diffuseLight = mainLight.color * saturate(diffuse);
 
                 // フォン反射モデル
                 float3 reflectDir = mainLight.direction + 2 * dot(IN.normalWS, -mainLight.direction) * IN.normalWS;
                 float3 viewDir = normalize(IN.positionWS - _WorldSpaceCameraPos); // カメラからポリゴンへの方向
                 float specular = dot(reflectDir, viewDir);
-                float3 specularLight = ambientColor * pow(clamp(specular, _ClampThreshold, 1), _SpecThreshold); // 適当な鏡面反射の強さ
+                specular = pow(saturate(specular), _SpecThreshold); // 適当な鏡面反射の強さ
+                float3 specularLight = mainLight.color * specular;
 
+                // 最終的なライティング計算
                 float3 finalLight = diffuseLight + specularLight;
 
-                half4 finalColor = half4(color.rgb * finalLight, color.a);
+                // ライトの効果を一律で底上げする
+                finalLight.xyz += _FinalLightThreshold;
+
+                // テクスチャーカラー取得
+                half4 finalColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv) * _BaseColor;
+                finalColor.xyz *= finalLight;
+
                 return finalColor;
             }
             ENDHLSL
