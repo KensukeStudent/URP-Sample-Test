@@ -31,6 +31,14 @@ public class NewMonoBehaviourScript : MonoBehaviour
     [SerializeField]
     private LineRenderer reflectLineRenderer;
 
+    // 補助線
+    [SerializeField]
+    private LineRenderer dnLineRenderer;
+
+    [SerializeField]
+    private LineRenderer dn2LineRenderer;
+
+
     private void Update()
     {
         // マウス位置をワールド座標に変換
@@ -65,5 +73,12 @@ public class NewMonoBehaviourScript : MonoBehaviour
         // 反射ベクトルを計算
         Vector3 reflection = incidentVec + dn2;
         reflectLineRenderer.SetPosition(1, reflection);
+
+        // 内積と法線の補助線
+        dnLineRenderer.SetPosition(0, mouseVec);
+        dnLineRenderer.SetPosition(1, dn);
+
+        dn2LineRenderer.SetPosition(0, mouseVec);
+        dn2LineRenderer.SetPosition(1, dn2);
     }
 }
