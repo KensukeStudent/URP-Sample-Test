@@ -78,21 +78,26 @@ Shader "Custom/PointLight"
                 // フォン反射モデル
                 float3 specularLight = CalcPhongSpecular(mainLight.direction, mainLight.color, IN.positionWS, IN.normalWS);
 
-                // ------------------------------- ポイントライトのライティング -------------------------------
-                Light pointLight;
-                pointLight = GetAdditionalLight(0, IN.positionWS);
+                // ------------------------------- 追加のライティング(ポイントライト・スポットライトなど) -------------------------------
+                Light addLight;
+                int addLightCount = GetAdditionalLightsCount();
+                float3 addDiffuseLight;
+                float3 addSpecularLight;
 
-                float3 pointDiffuseLight = CalcLambertDiffuse(pointLight.direction, pointLight.color, IN.normalWS);
-                float3 pointSpecularLight = CalcPhongSpecular(pointLight.direction, pointLight.color, IN.positionWS, IN.normalWS);
+                for (int index = 0; index < addLightCount; index++) {
+                    addLight = GetAdditionalLight(index, IN.positionWS);
+                    float3 pointDiffuseLight = CalcLambertDiffuse(addLight.direction, addLight.color, IN.normalWS);
+                    float3 pointSpecularLight = CalcPhongSpecular(addLight.direction, addLight.color, IN.positionWS, IN.normalWS);
 
-                // 減衰を考慮したポイントライトの合成
-                pointDiffuseLight *= pointLight.distanceAttenuation;
-                pointSpecularLight *= pointLight.distanceAttenuation;
+                    // 減衰を考慮したポイントライトの合成
+                    addDiffuseLight += pointDiffuseLight * addLight.distanceAttenuation;
+                    addSpecularLight += pointSpecularLight * addLight.distanceAttenuation;
+                }
 
                 // ------------------------------- ライティングの合成 -------------------------------
 
                 // 最終的なライティング計算
-                float3 finalLight = diffuseLight + specularLight + pointDiffuseLight + pointSpecularLight;
+                float3 finalLight = diffuseLight + specularLight + addDiffuseLight + addSpecularLight;
 
                 // ライトの効果を一律で底上げする
                 finalLight.xyz += _FinalLightThreshold;
