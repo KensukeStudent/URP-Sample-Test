@@ -90,17 +90,18 @@ Shader "Custom/LimLight"
                 // ------------------------------- 追加のライティング(ポイントライト・スポットライトなど) -------------------------------
                 Light addLight;
                 int addLightCount = GetAdditionalLightsCount();
-                float3 addDiffuseLight;
-                float3 addSpecularLight;
+                float3 addFinalLight;
 
                 for (int index = 0; index < addLightCount; index++) {
                     addLight = GetAdditionalLight(index, IN.positionWS);
-                    float3 pointDiffuseLight = CalcLambertDiffuse(addLight.direction, addLight.color, IN.normalWS);
-                    float3 pointSpecularLight = CalcPhongSpecular(addLight.direction, addLight.color, IN.positionWS, IN.normalWS);
+                    float3 addDiffuseLight = CalcLambertDiffuse(addLight.direction, addLight.color, IN.normalWS);
+                    float3 addSpecularLight = CalcPhongSpecular(addLight.direction, addLight.color, IN.positionWS, IN.normalWS);
 
                     // 減衰を考慮したポイントライトの合成
-                    addDiffuseLight += pointDiffuseLight * addLight.distanceAttenuation;
-                    addSpecularLight += pointSpecularLight * addLight.distanceAttenuation;
+                    addDiffuseLight = addDiffuseLight * addLight.distanceAttenuation;
+                    addSpecularLight = addSpecularLight * addLight.distanceAttenuation;
+
+                    addFinalLight += addDiffuseLight + addSpecularLight;
                 }
 
                 // ------------------------------- ライティングの合成 -------------------------------
