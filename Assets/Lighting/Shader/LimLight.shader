@@ -96,18 +96,20 @@ Shader "Custom/LimLight"
                     addLight = GetAdditionalLight(index, IN.positionWS);
                     float3 addDiffuseLight = CalcLambertDiffuse(addLight.direction, addLight.color, IN.normalWS);
                     float3 addSpecularLight = CalcPhongSpecular(addLight.direction, addLight.color, IN.positionWS, IN.normalWS);
+                    float3 addLimLight = CalcLimLight(addLight.direction, addLight.color, IN.positionWS, IN.normalWS);
 
                     // 減衰を考慮したポイントライトの合成
                     addDiffuseLight = addDiffuseLight * addLight.distanceAttenuation;
                     addSpecularLight = addSpecularLight * addLight.distanceAttenuation;
+                    addLimLight = addLimLight * addLight.distanceAttenuation;
 
-                    addFinalLight += addDiffuseLight + addSpecularLight;
+                    addFinalLight += addDiffuseLight + addSpecularLight + addLimLight;
                 }
 
                 // ------------------------------- ライティングの合成 -------------------------------
 
                 // 最終的なライティング計算
-                float3 finalLight = directionLight;
+                float3 finalLight = directionLight + addFinalLight;
 
                 // ライトの効果を一律で底上げする
                 finalLight.xyz += _FinalLightThreshold;
