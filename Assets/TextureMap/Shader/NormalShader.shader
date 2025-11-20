@@ -4,6 +4,7 @@ Shader "Custom/NormalShader"
     {
         [MainColor] _BaseColor("Base Color", Color) = (1, 1, 1, 1)
         [MainTexture] _BaseMap("Base Map", 2D) = "white" {} // TODO: {}が無いと以下定義するとエラー発生する
+        [MainTexture] _NormalMap("Normal Map", 2D) = "white" {} // TODO: {}が無いと以下定義するとエラー発生する
         
         _SpecThreshold("Specular Threshold", Range(0.0, 200.0)) = 5.0 // 鏡面反射の強さ
         _FinalLightThreshold("Final Light Threshold", Range(0.0, 1.0)) = 0.3 // ライトの底上げ量
@@ -30,23 +31,32 @@ Shader "Custom/NormalShader"
                 float4 positionOS : POSITION;
                 float2 uv : TEXCOORD0;
                 float3 normalOS: NORMAL;
+                float4 tangentOS: TANGENT;
             };
 
             struct Varyings
             {
                 float4 positionHCS : SV_POSITION;
                 float3 normalWS : NORMAL;
+                float4 tangentWS : TANGENT;
                 float2 uv : TEXCOORD0;
                 float3 positionWS : TEXCOORD1; // ワールド座標系の位置
-                // float3 normalVS : TEXCOORD2; // ビュー座標系の法線
             };
 
             TEXTURE2D(_BaseMap);
             SAMPLER(sampler_BaseMap);
 
+            TEXTURE2D(_NormalMap);
+            SAMPLER(sampler_NormalMap);
+
             CBUFFER_START(UnityPerMaterial)
+                
+                // 画像
                 half4 _BaseColor;
                 float4 _BaseMap_ST;
+                float4 _NormalMap_ST;
+
+                // パラメーター
                 float _SpecThreshold;
                 float _FinalLightThreshold;
                 float _LimLightThreshold;
@@ -57,33 +67,47 @@ Shader "Custom/NormalShader"
             float3 CalcLambertDiffuse(float3 lightDirection, float3 lightColor, float3 normal);
             float3 CalcPhongSpecular(float3 lightDirection, float3 lightColor, float3 positionWS, float3 normal);
             float3 CalcLimLight(float3 lightDirection, float3 lightColor, float3 positionWS, float3 normalWS);
-            float3 CalcLight(Varyings IN);
+            float3 CalcLight(float3 positionWS, float3 normalWS);
 
             Varyings vert(Attributes IN)
             {
                 Varyings OUT;
                 OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
+                OUT.positionWS = TransformObjectToWorld(IN.positionOS.xyz); // ローカル->ワールド変換
                 OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap);
                 OUT.normalWS = TransformObjectToWorldNormal(IN.normalOS);
-                OUT.positionWS = TransformObjectToWorld(IN.positionOS.xyz); // ローカル->ワールド変換
-                // OUT.normalVS = TransformWorldToViewNormal(OUT.normalWS, true); // ワールド->ビュー変換
+                OUT.tangentWS =  float4(TransformObjectToWorldDir(IN.tangentOS.xyz), IN.tangentOS.w);
                 return OUT;
             }
 
             half4 frag(Varyings IN) : SV_Target
             {
                 // ------------------------------------
+                // 法線マップ タンジェントスペースの計算
+                // ------------------------------------
+
+                float3 normalTS = UnpackNormal(SAMPLE_TEXTURE2D(_NormalMap, sampler_NormalMap, IN.uv)); //[0,0] -> [-1,1]に変換
+                float crossSign = (IN.tangentWS.w > 0.0 ? 1.0 : -1.0) * GetOddNegativeScale();
+                float3 bitangentWS = crossSign * cross(IN.normalWS.xyz, IN.tangentWS.xyz);
+                float3 normal = normalize(
+                    normalTS.x * IN.tangentWS + 
+                    normalTS.y * bitangentWS +
+                    normalTS.z * IN.normalWS
+                );
+
+                // ------------------------------------
                 // ライティング計算
                 // ------------------------------------
 
-                float3 finalLight = CalcLight(IN);
+                float3 finalLight = CalcLight(IN.positionWS, normal);
 
                 // ------------------------------------
                 // テクスチャーカラーとライティングの合成
                 // ------------------------------------
 
-                // テクスチャーカラー取得
+                // メインテクスチャカラー取得
                 half4 finalColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv) * _BaseColor;
+
                 finalColor.xyz *= finalLight;
 
                 return finalColor;
@@ -121,7 +145,7 @@ Shader "Custom/NormalShader"
                 return limPower * lightColor;
             }
 
-            float3 CalcLight(Varyings IN)
+            float3 CalcLight(float3 positionWS, float3 normalWS)
             {
                 // ------------------------------- メインライトのライティング -------------------------------
 
@@ -129,12 +153,11 @@ Shader "Custom/NormalShader"
                 mainLight = GetMainLight();
 
                 // ランバート反射モデル
-                float3 diffuseLight = CalcLambertDiffuse(mainLight.direction, mainLight.color, IN.normalWS);
+                float3 diffuseLight = CalcLambertDiffuse(mainLight.direction, mainLight.color, normalWS);
                 // フォン反射モデル
-                float3 specularLight = CalcPhongSpecular(mainLight.direction, mainLight.color, IN.positionWS, IN.normalWS);
+                float3 specularLight = CalcPhongSpecular(mainLight.direction, mainLight.color, positionWS, normalWS);
                 // リムライト
-                float3 limLight = CalcLimLight(mainLight.direction, mainLight.color, IN.positionWS, IN.normalWS);
-
+                float3 limLight = CalcLimLight(mainLight.direction, mainLight.color, positionWS, normalWS);
                 float3 directionLight = diffuseLight + specularLight + limLight;
 
                 // ------------------------------- 追加のライティング(ポイントライト・スポットライトなど) -------------------------------
@@ -143,10 +166,10 @@ Shader "Custom/NormalShader"
                 float3 addFinalLight;
 
                 for (int index = 0; index < addLightCount; index++) {
-                    addLight = GetAdditionalLight(index, IN.positionWS);
-                    float3 addDiffuseLight = CalcLambertDiffuse(addLight.direction, addLight.color, IN.normalWS);
-                    float3 addSpecularLight = CalcPhongSpecular(addLight.direction, addLight.color, IN.positionWS, IN.normalWS);
-                    float3 addLimLight = CalcLimLight(addLight.direction, addLight.color, IN.positionWS, IN.normalWS);
+                    addLight = GetAdditionalLight(index, positionWS);
+                    float3 addDiffuseLight = CalcLambertDiffuse(addLight.direction, addLight.color, normalWS);
+                    float3 addSpecularLight = CalcPhongSpecular(addLight.direction, addLight.color, positionWS, normalWS);
+                    float3 addLimLight = CalcLimLight(addLight.direction, addLight.color, positionWS, normalWS);
 
                     // 減衰を考慮したポイントライトの合成
                     addDiffuseLight = addDiffuseLight * addLight.distanceAttenuation;
@@ -161,7 +184,7 @@ Shader "Custom/NormalShader"
                 float3 groundColor = float3(1,0,0); // 地面の色を赤
                 float3 groundNormal = float3(0, 1, 0); // 地面の法線を真上
 
-                float t = dot(IN.normalWS, groundNormal);
+                float t = dot(normalWS, groundNormal);
                 t = (t + 1.0) / 2; // [0,1]に変換
 
                 float3 hemiLight = lerp(groundColor, skyColor, t);
