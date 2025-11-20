@@ -87,7 +87,7 @@ Shader "Custom/NormalShader"
                 // ------------------------------------
 
                 float3 normalTS = UnpackNormal(SAMPLE_TEXTURE2D(_NormalMap, sampler_NormalMap, IN.uv)); //[0,0] -> [-1,1]に変換
-                float crossSign = (IN.tangentWS.w > 0.0 ? 1.0 : -1.0) * GetOddNegativeScale();
+                float crossSign = (IN.tangentWS.w > 0.0 ? 1.0 : -1.0) * GetOddNegativeScale(); // GetOddNegativeScale() モデルが反転したときに補正する役割
                 float3 bitangentWS = crossSign * cross(IN.normalWS.xyz, IN.tangentWS.xyz);
                 float3 normal = normalize(
                     normalTS.x * IN.tangentWS + 
