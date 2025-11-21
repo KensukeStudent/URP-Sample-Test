@@ -29,20 +29,17 @@ Shader "Custom/OSNormalShader"
             // 自作ライティング関数
             #include "Assets\ShaderLibrary\Lighting\lightingFunc.hlsl"
 
-
             struct Attributes
             {
                 float4 positionOS : POSITION;
                 float2 uv : TEXCOORD0;
                 float3 normalOS: NORMAL;
-                float4 tangentOS: TANGENT;
             };
 
             struct Varyings
             {
                 float4 positionHCS : SV_POSITION;
                 float3 normalWS : NORMAL;
-                float4 tangentWS : TANGENT;
                 float2 uv : TEXCOORD0;
                 float3 positionWS : TEXCOORD1; // ワールド座標系の位置
             };
@@ -74,24 +71,17 @@ Shader "Custom/OSNormalShader"
                 OUT.positionWS = TransformObjectToWorld(IN.positionOS.xyz); // ローカル->ワールド変換
                 OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap);
                 OUT.normalWS = TransformObjectToWorldNormal(IN.normalOS);
-                OUT.tangentWS =  float4(TransformObjectToWorldDir(IN.tangentOS.xyz), IN.tangentOS.w);
                 return OUT;
             }
 
             half4 frag(Varyings IN) : SV_Target
             {
                 // ------------------------------------
-                // 法線マップ タンジェントスペースの計算
+                // 法線マップ オブジェクトスペースの計算
                 // ------------------------------------
 
-                float3 normalTS = UnpackNormal(SAMPLE_TEXTURE2D(_NormalMap, sampler_NormalMap, IN.uv)); //[0,0] -> [-1,1]に変換
-                float crossSign = (IN.tangentWS.w > 0.0 ? 1.0 : -1.0) * GetOddNegativeScale(); // GetOddNegativeScale() モデルが反転したときに補正する役割
-                float3 bitangentWS = crossSign * cross(IN.normalWS.xyz, IN.tangentWS.xyz);
-                float3 normal = normalize(
-                    normalTS.x * IN.tangentWS + 
-                    normalTS.y * bitangentWS +
-                    normalTS.z * IN.normalWS
-                );
+                float3 normalOS = UnpackNormal(SAMPLE_TEXTURE2D(_NormalMap, sampler_NormalMap, IN.uv)); //[0,0] -> [-1,1]に変換 rgb * 2 - 1
+                float3 normal = TransformObjectToWorldNormal(normalOS);
 
                 // ------------------------------------
                 // ライティング計算
