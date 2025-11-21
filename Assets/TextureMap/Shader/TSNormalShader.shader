@@ -9,7 +9,7 @@ Shader "Custom/TSNormalShader"
         _SpecThreshold("Specular Threshold", Range(0.0, 200.0)) = 5.0 // 鏡面反射の強さ
         _FinalLightThreshold("Final Light Threshold", Range(0.0, 1.0)) = 0.3 // ライトの底上げ量
         _LimLightThreshold("Lim Light Threshold", Range(0.0, 10.0)) = 10.0 // リムライトの鋭さ
-        _IsHemiLight("Is Hemi Light", Range(0.0, 1.0)) = 1 // 半球ライトの有効/無効
+        _IsHemiLight("Is Hemi Light", Range(0.0, 1.0)) = 0 // 半球ライトの有効/無効
     }
 
     SubShader
