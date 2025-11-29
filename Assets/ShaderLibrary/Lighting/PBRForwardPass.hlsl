@@ -54,7 +54,7 @@ float3 CalcLambertDiffuse(float3 lightDirection, float3 lightColor, float3 norma
 {
     float NdotL = saturate(dot(normal, lightDirection));
     float3 diffuse = lightColor * NdotL;
-    return diffuse /=  3.14159f; // ランバート反射モデルの正規化
+    return diffuse /=  3.14159f; // ランバート反射モデルの正規化 ヘルムホルツの相反性
 }
 
 // フォン鏡面反射モデル計算関数
