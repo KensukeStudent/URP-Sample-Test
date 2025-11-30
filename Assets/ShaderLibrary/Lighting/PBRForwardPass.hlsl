@@ -1,4 +1,6 @@
-// Assets/ShaderLibrary/lightingFunc.hlsl
+// 光の影響を受ける汎用シェーダー用 窓口
+
+// Assets/ShaderLibrary/LitForwardPass.hlsl
 // このファイルを使用する場合は Shader 内で以下を include してください:
 // #include "Assets\ShaderLibrary\Lighting\PBRForwardPass.hlsl"
 
@@ -133,6 +135,10 @@ float3 CalcLight(float3 positionWS, float3 normalWS, half specPower)
     // 最終的なライティング計算
     return directionLight + addFinalLight + hemiLight;
 }
+
+// -------------------------------------------------------------------
+// Index Pass Shader Functions
+// -------------------------------------------------------------------
 
 Varyings PBRPassVertex(Attributes IN)
 {
