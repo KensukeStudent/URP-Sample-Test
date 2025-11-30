@@ -61,14 +61,14 @@ Varyings PBRPassVertex(Attributes IN)
 
 half4 PBRPassFragment(Varyings IN) : SV_Target
 {
-    // 入力情報
-    MyInputData inputData;
-    InitializeInputData(IN, GetNormalTsToWorld(IN.uv), inputData);
-
     // サーフェス情報
     MySurfaceData surfaceData;
     LightingInputData lightingInputData;
     InitializeStandardLitSurfaceData(IN.uv, surfaceData, lightingInputData);
+
+    // 入力情報
+    MyInputData inputData;
+    InitializeInputData(IN, surfaceData.normalTS, inputData);
 
     float3 light = MyUniversalFragmentPBR(inputData, surfaceData, lightingInputData);
     light += surfaceData.occlusion;
