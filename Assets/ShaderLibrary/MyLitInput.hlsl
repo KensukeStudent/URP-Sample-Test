@@ -34,6 +34,8 @@ CBUFFER_START(UnityPerMaterial)
     float _SpecThreshold;        // 鏡面反射の鋭さ
     float _LimLightThreshold;    // リムライトの鋭さ
     float _HemiLightThreshold;   // 半球ライトの強さ
+
+    float _Smoothness;          // 滑らかさ
 CBUFFER_END
 
 /// タンジェントスペースにおける法線ベクトルを取得
@@ -75,6 +77,7 @@ inline void InitializeStandardLitSurfaceData(float2 uv, out MySurfaceData surfac
     surfaceData.normalTS = GetNormalTsToWorld(uv);
     surfaceData.occlusion = GetAmbientOcclusion(uv); // 間接光で影響を与える
     surfaceData.alpha = GetAlbedoColor(uv).a;
+    surfaceData.smoothness = _Smoothness;
 
     // light threshold
     lightingInputData.specularThreshold = _SpecThreshold;        // 鏡面反射の鋭さ

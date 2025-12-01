@@ -10,6 +10,7 @@ Shader "Custom/LitShader"
         
         _SpecThreshold("Specular Threshold", Range(0.0, 200.0)) = 5.0 // 鏡面反射の強さ
         _SpecPower("Specular Power", Range(0.0, 10.0)) = 1.0 // 鏡面反射の強さ
+        _Smoothness("Smoothness", Range(0.0, 1.0)) = 0.5 // 滑らかさ
         _LimLightThreshold("Lim Light Threshold", Range(0.0, 10.0)) = 10.0 // リムライトの鋭さ
         _HemiLightThreshold("Hemi Light Threshold", Range(0.0, 1.0)) = 0 // 半球ライトの強さ
         _AmbientPower("Ambient Power", Range(0.0, 1.0)) = 0.3 // 環境光の基準値

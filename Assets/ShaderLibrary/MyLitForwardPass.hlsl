@@ -42,6 +42,8 @@ void InitializeInputData(Varyings IN, float3 normalTS, out MyInputData inputData
     inputData.normalWS = normalTS.x * IN.tangentWS.xyz + 
                          normalTS.y * bitangentWS + 
                          normalTS.z * IN.normalWS;
+    
+    inputData.viewDirWS = normalize(_WorldSpaceCameraPos - IN.positionWS);
 }
 
 // -------------------------------------------------------------------

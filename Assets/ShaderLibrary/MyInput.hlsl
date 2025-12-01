@@ -8,6 +8,7 @@ struct MyInputData
 {
     float3 positionWS; // ワールド空間の座標
     float3 normalWS;   // ワールド空間の法線ベクトル
+    float3 viewDirWS;  // サーフェスから視線に向かうベクトル
 };
 
 #endif
