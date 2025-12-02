@@ -19,6 +19,9 @@ SAMPLER(sampler_NormalMap);
 TEXTURE2D(_SpecularMap);
 SAMPLER(sampler_SpecularMap);
 
+TEXTURE2D(_MetallicMap);
+SAMPLER(sampler_MetallicMap);
+
 TEXTURE2D(_AoMap);
 SAMPLER(sampler_AoMap);
 
@@ -54,6 +57,13 @@ half GetSpecularPower(float2 uv)
     return specPower;
 }
 
+/// メタリックマップの取得関数
+half GetMetallicPower(float2 uv)
+{
+    half metallic = SAMPLE_TEXTURE2D(_MetallicMap, sampler_MetallicMap, uv).r;
+    return metallic;
+}
+
 /// アンビエントオクルージョンマップの取得関数
 float GetAmbientOcclusion(float2 uv)
 {
@@ -74,6 +84,7 @@ inline void InitializeStandardLitSurfaceData(float2 uv, out MySurfaceData surfac
     // テクスチャー情報
     surfaceData.albedo = GetAlbedoColor(uv).rgb;
     surfaceData.specular = GetSpecularPower(uv) * _SpecThreshold;
+    surfaceData.metallic = GetMetallicPower(uv);
     surfaceData.normalTS = GetNormalTsToWorld(uv);
     surfaceData.occlusion = GetAmbientOcclusion(uv); // 間接光で影響を与える
     surfaceData.alpha = GetAlbedoColor(uv).a;

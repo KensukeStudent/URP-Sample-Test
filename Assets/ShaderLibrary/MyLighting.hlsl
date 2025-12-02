@@ -120,7 +120,7 @@ float CookTorranceSpecular(float3 L, float3 V, float3 N, float metallic)
 /// <param name="L">光源に向かうベクトル。光の方向と逆向きのベクトル。</param>
 /// <param name="V">視線に向かうベクトル。</param>
 /// <param name="roughness">粗さ。0～1の範囲。</param>
-float CalcDiffuseFromFresnel(float3 N, float3 L, float3 V)
+float CalcDiffuseFromFresnel(float3 N, float3 L, float3 V, float roughness)
 {
     // step-1 ディズニーベースのフレネル反射による拡散反射を真面目に実装する。
     
@@ -144,9 +144,6 @@ float CalcDiffuseFromFresnel(float3 N, float3 L, float3 V)
     
     // 光源に向かうベクトルと視線に向かうベクトルのハーフベクトルを求める
     float3 H = normalize(L + V); // 粗さを考慮するために反射ベクトル方向ではなくて，ハーフベクトル方向とするらしい
-    
-    // 粗さ：0.5fとする
-    float roughness = 0.5f;
     
     //  Disney拡散反射BRDF はエネルギー保存則を満たさないため正規化を行う
     // https://zenn.dev/mebiusbox/books/619c81d2fbeafd/viewer/77aea9#%E6%AD%A3%E8%A6%8F%E5%8C%96
@@ -215,6 +212,8 @@ float3 MyUniversalFragmentPBR(MyInputData inputData, MySurfaceData surfaceData, 
     float limLightThreshold = lightInputData.limLightThreshold;
     float hemiLightThreshold = lightInputData.hemiLightThreshold;
 
+    float roughness = 1.0 - surfaceData.smoothness; // 滑らかさから粗さを計算
+
     // ------------------------------- メインライトのライティング -------------------------------
 
     Light mainLight;
@@ -222,8 +221,8 @@ float3 MyUniversalFragmentPBR(MyInputData inputData, MySurfaceData surfaceData, 
 
     // ランバート反射モデル
     float3 diffuseLight = CalcLambertDiffuse(mainLight.direction, mainLight.color, normalWS);
-    diffuseLight *= CalcDiffuseFromFresnel(normalWS, -mainLight.direction, inputData.viewDirWS); // フレネル反射を考慮した拡散反射
-    diffuseLight *= (1.0f - surfaceData.smoothness); // 滑らかさが高ければ、拡散反射は弱くなる
+    diffuseLight *= CalcDiffuseFromFresnel(normalWS, -mainLight.direction, inputData.viewDirWS, roughness); // フレネル反射を考慮した拡散反射
+    diffuseLight *= roughness; // 滑らかさが高ければ、拡散反射は弱くなる
     // フォン反射モデル
     float3 specularLight = CalcPhongSpecular(mainLight.direction, mainLight.color, positionWS, normalWS, specularThreshold) * surfaceData.specular;
     // リムライト
@@ -241,8 +240,8 @@ float3 MyUniversalFragmentPBR(MyInputData inputData, MySurfaceData surfaceData, 
         float3 addSpecularLight = CalcPhongSpecular(addLight.direction, addLight.color, positionWS, normalWS, specularThreshold) * surfaceData.specular;
         float3 addLimLight = CalcLimLight(addLight.direction, addLight.color, positionWS, normalWS, limLightThreshold);
 
-        addDiffuseLight *= CalcDiffuseFromFresnel(normalWS, -addLight.direction, inputData.viewDirWS); // フレネル反射を考慮した拡散反射
-        addDiffuseLight *= (1.0f - surfaceData.smoothness); // 滑らかさが高ければ、拡散反射は弱くなる
+        addDiffuseLight *= CalcDiffuseFromFresnel(normalWS, -addLight.direction, inputData.viewDirWS, roughness); // フレネル反射を考慮した拡散反射
+        addDiffuseLight *= roughness; // 滑らかさが高ければ、拡散反射は弱くなる
 
         // 減衰を考慮したポイントライトの合成
         addDiffuseLight = addDiffuseLight * addLight.distanceAttenuation;
