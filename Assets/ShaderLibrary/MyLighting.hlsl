@@ -54,6 +54,7 @@ float SpcFresnel(float f0, float u)
 /// </summary>
 /// <remark>
 /// BRDFというのは、「光が特定の方向から入射したとき、どの方向にどれだけ反射されるか」を表す関数です。反射の角度や強度を決める「反射の分布」を表します
+/// Bidirectional Reflectance Distribution Function(双方向反射分布関数)
 /// BRDFの特徴：ヘルムホルツの法則とエネルギー保存則を満たすものである（現実世界に近い表現が可能）
 /// 主に微小面反射(Microfacet Model)を考慮した式が使われる：物体の表面は完全に平坦ではなく、それぞれ小さな「傾いた面（微小面）」で構成されています
 /// Cook-Torranceモデル ：
@@ -69,11 +70,10 @@ float SpcFresnel(float f0, float u)
 /// <param name="L">光源に向かうベクトル</param>
 /// <param name="V">視点に向かうベクトル</param>
 /// <param name="N">法線ベクトル</param>
+/// <param name="microfacet">粗さ roughnessを用いる</param>
 /// <param name="metallic">金属度</param>
-float CookTorranceSpecular(float3 L, float3 V, float3 N, float metallic)
+float CookTorranceSpecular(float3 L, float3 V, float3 N, float microfacet, float metallic)
 {
-    float microfacet = 0.76f;
-
     // 金属度を垂直入射の時のフレネル反射率として扱う
     // 金属度が高いほどフレネル反射は大きくなる
     float f0 = metallic;
@@ -224,7 +224,8 @@ float3 MyUniversalFragmentPBR(MyInputData inputData, MySurfaceData surfaceData, 
     diffuseLight *= CalcDiffuseFromFresnel(normalWS, -mainLight.direction, inputData.viewDirWS, roughness); // フレネル反射を考慮した拡散反射
     diffuseLight *= roughness; // 滑らかさが高ければ、拡散反射は弱くなる
     // フォン反射モデル
-    float3 specularLight = CalcPhongSpecular(mainLight.direction, mainLight.color, positionWS, normalWS, specularThreshold) * surfaceData.specular;
+    //float3 specularLight = CalcPhongSpecular(mainLight.direction, mainLight.color, positionWS, normalWS, specularThreshold) * surfaceData.specular;
+    float3 specularLight = CookTorranceSpecular(-mainLight.direction, inputData.viewDirWS, normalWS, roughness, surfaceData.metallic) * mainLight.color;
     // リムライト
     float3 limLight = CalcLimLight(mainLight.direction, mainLight.color, positionWS, normalWS, limLightThreshold);
     float3 directionLight = diffuseLight + specularLight + limLight;
@@ -237,7 +238,8 @@ float3 MyUniversalFragmentPBR(MyInputData inputData, MySurfaceData surfaceData, 
     for (int index = 0; index < addLightCount; index++) {
         addLight = GetAdditionalLight(index, positionWS);
         float3 addDiffuseLight = CalcLambertDiffuse(addLight.direction, addLight.color, normalWS);
-        float3 addSpecularLight = CalcPhongSpecular(addLight.direction, addLight.color, positionWS, normalWS, specularThreshold) * surfaceData.specular;
+        //float3 addSpecularLight = CalcPhongSpecular(addLight.direction, addLight.color, positionWS, normalWS, specularThreshold) * surfaceData.specular;
+        float3 addSpecularLight = CookTorranceSpecular(-addLight.direction, inputData.viewDirWS, normalWS, roughness, surfaceData.metallic) * addLight.color;
         float3 addLimLight = CalcLimLight(addLight.direction, addLight.color, positionWS, normalWS, limLightThreshold);
 
         addDiffuseLight *= CalcDiffuseFromFresnel(normalWS, -addLight.direction, inputData.viewDirWS, roughness); // フレネル反射を考慮した拡散反射
