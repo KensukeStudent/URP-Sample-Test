@@ -73,7 +73,7 @@ half4 PBRPassFragment(Varyings IN) : SV_Target
     InitializeInputData(IN, surfaceData.normalTS, inputData);
 
     float3 light = MyUniversalFragmentPBR(inputData, surfaceData, lightingInputData);
-    light += surfaceData.occlusion;
+    //light += surfaceData.occlusion;
 
     // ------------------------------------
     // テクスチャーカラーとライティングの合成

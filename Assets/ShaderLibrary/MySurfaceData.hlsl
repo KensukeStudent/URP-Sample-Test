@@ -6,7 +6,7 @@
 struct MySurfaceData
 {
     half3 albedo;
-    half specular;
+    half4 specular;
     half  metallic;
     half  smoothness;
     half3 normalTS;

@@ -22,10 +22,10 @@ float Beckmann(float m, float t)
 {
     // t が小さい（法線とハーフベクトルが大きくずれている） と指数項が小さくなり、Dも小さくなる
     // Dが大きいほど、鏡面反射が強くなる（ ハイライトが鋭くなる）
-    
+
     // 公式
     // D = 1 / (4 * m^2 * t^4) * exp(-(1/m^2) * (1 - t^2) / t^2)
-    
+
     float t2 = t * t;
     float t4 = t * t * t * t;
     float m2 = m * m;
@@ -123,48 +123,48 @@ float CookTorranceSpecular(float3 L, float3 V, float3 N, float microfacet, float
 float CalcDiffuseFromFresnel(float3 N, float3 L, float3 V, float roughness)
 {
     // step-1 ディズニーベースのフレネル反射による拡散反射を真面目に実装する。
-    
+
     // =========================================================================================================
     // 公式
     // baseColor * ( (1 + (Fd90 - 1)(1 - cosΘl)^5) * (1 + (Fd90 - 1)(1 - cosΘv)^5) ) / π
     // この関数で行っている部分は( (1 + (Fd90 - 1)(1 - cosΘl)^5) * (1 + (Fd90 - 1)(1 - cosΘv)^5) )だけ
-    
+
     // 前半の(1 + (Fd90 - 1)(1 - cosΘl)^5)：法線と光源ベクトル基準の拡散反射率
     // 後半の(1 + (Fd90 - 1)(1 - cosΘv)^5)：法線と視線ベクトル基準の拡散反射率
     // π：求めた拡散反射率の正規化定数
-    
+
     // 期待される結果（cosΘの値に応じて変わるようなイメージ、要はlerpみたいな式）
     // 入射ベクトル = 法線: cosΘ = 1 ==> 拡散反射率 = 1
     // 入射ベクトル ⊥ 法線: cosΘ = 0 ==> 拡散反射率 = Fd90
-    
+
     // Fd90 = 0.5f + 2.0f * roughness * cosΘ^2
     // 0.5をEAの(0.0~0.5)の範囲内だと全体の拡散反射を0.0~1.0に調整できる
-    
+
     // =========================================================================================================
-    
+
     // 光源に向かうベクトルと視線に向かうベクトルのハーフベクトルを求める
     float3 H = normalize(L + V); // 粗さを考慮するために反射ベクトル方向ではなくて，ハーフベクトル方向とするらしい
-    
+
     //  Disney拡散反射BRDF はエネルギー保存則を満たさないため正規化を行う
     // https://zenn.dev/mebiusbox/books/619c81d2fbeafd/viewer/77aea9#%E6%AD%A3%E8%A6%8F%E5%8C%96
     float energyBias = lerp(0.0f, 0.5f, roughness);
     float energyFactor = lerp(1.0f, 1.0f / 1.51f, roughness); // 正規化値
-    
+
     // 光源に向かうベクトルとハーフベクトルがどれだけ似ているかを内積で求める
     float dotLH = saturate(dot(L, H));
-    
+
     // 光源に向かうベクトルとハーフベクトル
     // 光が平行に入射したときの拡散反射量を求める
     float Fd90 = energyBias + 2.0f * roughness * dotLH * dotLH;
-    
+
     // 法線と光源に向かうベクトルを利用して拡散反射率を求める
     float dotNL = saturate(dot(N, L));
     float FL = (1.0f + (Fd90 - 1.0f) * pow(1.0f - dotNL, 5.0f));
-    
+
     // 法線と視線に向かうベクトルを利用して拡散反射率を求める
     float dotNV = saturate(dot(N, V));
     float FV = (1.0f + (Fd90 - 1.0f) * pow(1.0f - dotNV, 5.0f));
-    
+
     // それぞれの拡散反射率を掛け合わせて、エネルギー保存の法則を満たすように正規化する
     return (FL * FV) * energyFactor;
 }
@@ -226,6 +226,9 @@ float3 MyUniversalFragmentPBR(MyInputData inputData, MySurfaceData surfaceData, 
     // フォン反射モデル
     //float3 specularLight = CalcPhongSpecular(mainLight.direction, mainLight.color, positionWS, normalWS, specularThreshold) * surfaceData.specular;
     float3 specularLight = CookTorranceSpecular(-mainLight.direction, inputData.viewDirWS, normalWS, roughness, surfaceData.metallic) * mainLight.color;
+    // 金属度が高ければ、鏡面反射はスペキュラカラー、低ければ白
+    // スペキュラカラーの強さを鏡面反射率として扱う
+    specularLight *= lerp(float3(1,1,1), surfaceData.specular.rgb, surfaceData.metallic); // 金属度に応じてスペキュラーカラーを変化させる
     // リムライト
     float3 limLight = CalcLimLight(mainLight.direction, mainLight.color, positionWS, normalWS, limLightThreshold);
     float3 directionLight = diffuseLight + specularLight + limLight;
@@ -233,25 +236,28 @@ float3 MyUniversalFragmentPBR(MyInputData inputData, MySurfaceData surfaceData, 
     // ------------------------------- 追加のライティング(ポイントライト・スポットライトなど) -------------------------------
     Light addLight;
     int addLightCount = GetAdditionalLightsCount();
-    float3 addFinalLight;
+    float3 addFinalLight = float3(0,0,0);
 
-    for (int index = 0; index < addLightCount; index++) {
-        addLight = GetAdditionalLight(index, positionWS);
-        float3 addDiffuseLight = CalcLambertDiffuse(addLight.direction, addLight.color, normalWS);
-        //float3 addSpecularLight = CalcPhongSpecular(addLight.direction, addLight.color, positionWS, normalWS, specularThreshold) * surfaceData.specular;
-        float3 addSpecularLight = CookTorranceSpecular(-addLight.direction, inputData.viewDirWS, normalWS, roughness, surfaceData.metallic) * addLight.color;
-        float3 addLimLight = CalcLimLight(addLight.direction, addLight.color, positionWS, normalWS, limLightThreshold);
+    // for (int index = 0; index < addLightCount; index++) {
+    //     addLight = GetAdditionalLight(index, positionWS);
+    //     float3 addDiffuseLight = CalcLambertDiffuse(addLight.direction, addLight.color, normalWS);
+    //     //float3 addSpecularLight = CalcPhongSpecular(addLight.direction, addLight.color, positionWS, normalWS, specularThreshold) * surfaceData.specular;
+    //     float3 addSpecularLight = CookTorranceSpecular(-addLight.direction, inputData.viewDirWS, normalWS, roughness, surfaceData.metallic) * addLight.color;
+    //     金属度が高ければ、鏡面反射はスペキュラカラー、低ければ白
+    //     スペキュラカラーの強さを鏡面反射率として扱う
+    //     specularLight *= lerp(float3(1,1,1), surfaceData.specular.rgb, surfaceData.metallic); // 金属度に応じてスペキュラーカラーを変化させる
+    //     float3 addLimLight = CalcLimLight(addLight.direction, addLight.color, positionWS, normalWS, limLightThreshold);
 
-        addDiffuseLight *= CalcDiffuseFromFresnel(normalWS, -addLight.direction, inputData.viewDirWS, roughness); // フレネル反射を考慮した拡散反射
-        addDiffuseLight *= roughness; // 滑らかさが高ければ、拡散反射は弱くなる
+    //     addDiffuseLight *= CalcDiffuseFromFresnel(normalWS, -addLight.direction, inputData.viewDirWS, roughness); // フレネル反射を考慮した拡散反射
+    //     addDiffuseLight *= roughness; // 滑らかさが高ければ、拡散反射は弱くなる
 
-        // 減衰を考慮したポイントライトの合成
-        addDiffuseLight = addDiffuseLight * addLight.distanceAttenuation;
-        addSpecularLight = addSpecularLight * addLight.distanceAttenuation;
-        addLimLight = addLimLight * addLight.distanceAttenuation;
+    //     // 減衰を考慮したポイントライトの合成
+    //     addDiffuseLight = addDiffuseLight * addLight.distanceAttenuation;
+    //     addSpecularLight = addSpecularLight * addLight.distanceAttenuation;
+    //     addLimLight = addLimLight * addLight.distanceAttenuation;
 
-        addFinalLight += addDiffuseLight + addSpecularLight + addLimLight;
-    }
+    //     addFinalLight += addDiffuseLight + addSpecularLight + addLimLight;
+    // }
 
     // ------------------------------- 半球ライト -------------------------------
     float3 skyColor = mainLight.color;
@@ -268,7 +274,7 @@ float3 MyUniversalFragmentPBR(MyInputData inputData, MySurfaceData surfaceData, 
 
     // 最終的なライティング計算
     float3 lig = directionLight + addFinalLight + hemiLight;
-    lig += surfaceData.occlusion; // 間接光の影響を加算, TODO: この加算方法はデモ用
+    lig += float3(0.3,0.3,0.3) * surfaceData.occlusion; // 間接光の影響を加算
     return lig;
 }
 

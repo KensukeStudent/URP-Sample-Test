@@ -32,7 +32,7 @@ CBUFFER_START(UnityPerMaterial)
 
     // パラメーター
     float _SpecPower;
-    float _AmbientPower;
+    float _AmbientThreshold;
 
     float _SpecThreshold;        // 鏡面反射の鋭さ
     float _LimLightThreshold;    // リムライトの鋭さ
@@ -49,12 +49,14 @@ float3 GetNormalTsToWorld(float2 uv)
     return normalTS;
 }
 
-/// スペキュラーマップの取得関数
-half GetSpecularPower(float2 uv)
+/// スペキュラー/メタリックマップの取得関数
+half4 GetMetallicSpecGloss(float2 uv)
 {
-    half specPower = SAMPLE_TEXTURE2D(_SpecularMap, sampler_SpecularMap, uv).r;
-    specPower *= _SpecPower;
-    return specPower;
+    half4 specular = SAMPLE_TEXTURE2D(_SpecularMap, sampler_SpecularMap, uv);
+    specular *= _SpecPower;
+
+    //half4 specGloss = SAMPLE_TEXTURE2D(_MetallicMap, sampler_MetallicMap, uv);
+    return specular;
 }
 
 /// メタリックマップの取得関数
@@ -68,7 +70,7 @@ half GetMetallicPower(float2 uv)
 float GetAmbientOcclusion(float2 uv)
 {
     half occlusion = SAMPLE_TEXTURE2D(_AoMap, sampler_AoMap, uv).r;
-    occlusion *= _AmbientPower;
+    occlusion *= _AmbientThreshold;
     return occlusion;
 }
 
@@ -83,7 +85,7 @@ inline void InitializeStandardLitSurfaceData(float2 uv, out MySurfaceData surfac
 {
     // テクスチャー情報
     surfaceData.albedo = GetAlbedoColor(uv).rgb;
-    surfaceData.specular = GetSpecularPower(uv) * _SpecThreshold;
+    surfaceData.specular = GetMetallicSpecGloss(uv);
     surfaceData.metallic = GetMetallicPower(uv);
     surfaceData.normalTS = GetNormalTsToWorld(uv);
     surfaceData.occlusion = GetAmbientOcclusion(uv); // 間接光で影響を与える
