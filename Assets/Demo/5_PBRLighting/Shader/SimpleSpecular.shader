@@ -8,6 +8,9 @@ Shader "Custom/SimpleSpecular"
         _SpecularColor("Specular Color", Color) = (1, 1, 1, 1) // 鏡面反射の色
         _SpecularPower("Specular Power", Range(1.0, 100.0)) = 5.0 // 鏡面反射の強さ
         _SpecThreshold("Specular Threshold", Range(0.0, 1.0)) = 0.5 // 鏡面反射の閾値
+
+        _Metallic("Metallic", Range(0.0, 1.0)) = 0.0 // メタリック（PBR用）
+        _Smoothness("Smoothness", Range(0.0, 1.0)) = 0.5 // 滑らかさ（PBR用）
     }
 
     SubShader
@@ -50,6 +53,10 @@ Shader "Custom/SimpleSpecular"
                 float4 _SpecularColor;
                 float _SpecularPower;
                 float _SpecThreshold;
+
+                // メタリック・滑らかさ（PBR用）
+                float _Metallic;
+                float _Smoothness;
             CBUFFER_END
 
             Varyings vert(Attributes IN)

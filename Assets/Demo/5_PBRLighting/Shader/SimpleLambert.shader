@@ -8,7 +8,7 @@ Shader "Custom/SimpleLambert"
         // 拡散反射
         _DiffuseColor("Diffuse Color", Color) = (1, 1, 1, 1) // 拡散反射の色
 
-        // メタリック・粗さ（PBR用）
+        // メタリック（PBR用）
         _Metallic("Metallic", Range(0.0, 1.0)) = 0.0
     }
 
@@ -51,7 +51,7 @@ Shader "Custom/SimpleLambert"
                 // 拡散反射
                 float4 _DiffuseColor;
 
-                // メタリック・粗さ（PBR用）
+                // メタリック（PBR用）
                 float _Metallic;
             CBUFFER_END
 
