@@ -45,8 +45,7 @@ CBUFFER_END
 /// uv: UV座標
 float3 GetNormalTsToWorld(float2 uv)
 {
-    float3 normalTS = UnpackNormal(SAMPLE_TEXTURE2D(_NormalMap, sampler_NormalMap, uv)); //[0,0] -> [-1,1]に変換
-    return normalTS;
+    return UnpackNormal(SAMPLE_TEXTURE2D(_NormalMap, sampler_NormalMap, uv)); //[0,0] -> [-1,1]に変換
 }
 
 /// スペキュラー/メタリックマップの取得関数

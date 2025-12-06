@@ -42,7 +42,7 @@ void InitializeInputData(Varyings IN, float3 normalTS, out MyInputData inputData
     inputData.normalWS = normalTS.x * IN.tangentWS.xyz + 
                          normalTS.y * bitangentWS + 
                          normalTS.z * IN.normalWS;
-    
+        
     inputData.viewDirWS = normalize(_WorldSpaceCameraPos - IN.positionWS);
 }
 
@@ -57,7 +57,7 @@ Varyings PBRPassVertex(Attributes IN)
     OUT.positionWS = TransformObjectToWorld(IN.positionOS.xyz); // ローカル->ワールド変換
     OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap);
     OUT.normalWS = TransformObjectToWorldNormal(IN.normalOS); // 正規化済み
-    OUT.tangentWS =  float4(TransformObjectToWorldDir(IN.tangentOS.xyz), IN.tangentOS.w); // 正規化済み
+    OUT.tangentWS = float4(TransformObjectToWorldDir(IN.tangentOS.xyz), IN.tangentOS.w); // 正規化済み
     return OUT;
 }
 

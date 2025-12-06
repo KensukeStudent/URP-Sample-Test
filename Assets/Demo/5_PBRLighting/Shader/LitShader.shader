@@ -4,7 +4,8 @@ Shader "Custom/LitShader"
     {
         [MainColor] _BaseColor("Base Color", Color) = (1, 1, 1, 1)
         [MainTexture] [NoScaleOffset] _BaseMap("Albedo Map", 2D) = "white" {}
-        [NoScaleOffset] _NormalMap("Normal Map", 2D) = "white" {}
+        [NoScaleOffset] _NormalMap("Normal Map", 2D) = "bump" {}
+
         [NoScaleOffset] _SpecularMap("Specular Map", 2D) = "white" {}
         [NoScaleOffset] _MetallicMap("Metallic Map", 2D) = "white" {}
         [NoScaleOffset] _AoMap("Ambient Occlusion Map", 2D) = "white" {}
