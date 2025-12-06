@@ -6,7 +6,6 @@ Shader "Custom/SimpleSpecular"
         [MainTexture] _BaseMap("Base Map", 2D) = "white" {}
 
         _SpecularColor("Specular Color", Color) = (1, 1, 1, 1) // 鏡面反射の色
-        _SpecularPower("Specular Power", Range(1.0, 100.0)) = 5.0 // 鏡面反射の強さ
 
         _Metallic("Metallic", Range(0.0, 1.0)) = 0.0 // メタリック（PBR用）
         _Smoothness("Smoothness", Range(0.0, 1.0)) = 0.5 // 滑らかさ（PBR用）
@@ -50,7 +49,6 @@ Shader "Custom/SimpleSpecular"
 
                 // 鏡面反射
                 float4 _SpecularColor;
-                float _SpecularPower;
 
                 // メタリック・滑らかさ（PBR用）
                 float _Metallic;
@@ -80,15 +78,14 @@ Shader "Custom/SimpleSpecular"
 
                 half4 albedo = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv) * _BaseColor;
                 half3 specularColor = lerp(mainLight.color, albedo.rgb, half3(_Metallic, _Metallic, _Metallic));
-                float roughness = 1 - _Smoothness;
-                
+                float shininess = lerp(32, 4096, 1 - _Smoothness);  // PBRに近い値
                 float3 viewDir = normalize(_WorldSpaceCameraPos - IN.positionWS); // カメラからポリゴンへの方向
-                float3 reflectDir = reflect(-mainLight.direction, IN.normalWS);
-                float RdotV = saturate(dot(reflectDir, viewDir));
-                float3 specularColorWithPower = pow(RdotV, _SpecularPower) * specularColor.rgb;
-                float3 specular = specularColorWithPower * _Smoothness;
-                
-                return half4(specular, 1.0) * albedo;
+
+                float3 halfDir = normalize(mainLight.direction + viewDir);
+                float NdotH = saturate(dot(IN.normalWS, halfDir));
+                float3 specular = pow(NdotH, shininess) * _SpecularColor.rgb * mainLight.color.rgb;
+
+                return half4(specular + albedo.rgb * (1 - _Metallic), 1.0) + albedo;
             }
             ENDHLSL
         }
