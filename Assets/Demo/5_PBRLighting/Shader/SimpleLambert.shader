@@ -78,7 +78,7 @@ Shader "Custom/SimpleLambert"
                 float3 lightDir = normalize(mainLight.direction);
                 float NdotL = saturate(dot(IN.normalWS, lightDir));
                 float3 diffuseColor = NdotL * mainLight.color.rgb * _DiffuseColor.rgb;
-                float3 lambertDiffuse = diffuseColor * diffuseThreshold;
+                float3 lambertDiffuse = diffuseColor * diffuseThreshold; // エネルギー保存の法則による正規化無し
 
                 // ----- 最低限の明るさを担保 -----
                 half3 ambient = SampleSH(IN.normalWS); // スカイボックスカラーなどの間接光
