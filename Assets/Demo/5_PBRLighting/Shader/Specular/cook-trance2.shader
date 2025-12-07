@@ -227,7 +227,7 @@ Shader "Custom/cook-torrance-fixed"
 
                 // multiply by Fresnel to tint specular IBL by F
                 float3 F_env = FresnelSchlick(saturate(dot(R, V)), F0);
-                float3 specularIBL = ambientSpecularIBL * F_env;
+                float3 specularIBL = ambientSpecularIBL * F_env * lerp(0.0, 0.5, _Smoothness);
 
                 // Diffuseの計算 ------------------------------------------------------------
 
@@ -241,10 +241,10 @@ Shader "Custom/cook-torrance-fixed"
                 float3 diffuse = lambertDiffuse * fresnelDiffuse;
 
                 // メタリックに応じて環境光の影響を変化し、メインライトの色も少し加算
-                half3 lambertAmbient = SampleSH(IN.normalWS) * lerp(0.4, 1.0, diffuseThreshold) + mainLight.color.rgb * 0.1;
+                half3 diffuseAmbient = SampleSH(IN.normalWS) * lerp(0.4, 1.0, diffuseThreshold) + mainLight.color.rgb * 0.1;
 
                 // 合成
-                half3 color = (specular + specularIBL + diffuse + lambertAmbient) * albedo;
+                half3 color = (diffuse + diffuseAmbient + specular + specularIBL) * albedo;
 
                 // ガンマ補正はマテリアルパイプライン側で行うことが多い
                 return half4(color, 1.0);
