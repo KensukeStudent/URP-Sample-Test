@@ -1,3 +1,4 @@
+// 簡単なランバートとフォン反射モデルのシェーダー
 Shader "Custom/SimpleShader"
 {
     Properties
