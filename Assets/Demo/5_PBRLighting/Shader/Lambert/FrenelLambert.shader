@@ -11,8 +11,6 @@ Shader "Custom/FrenelLambert"
         // メタリック（PBR用）
         _Metallic("Metallic", Range(0.0, 1.0)) = 0.0
         _Smoothness("Smoothness", Range(0.0, 1.0)) = 0.5
-
-        _Ambient("Ambient", Range(0.0, 1.0)) = 0.3
     }
 
     SubShader
@@ -57,9 +55,14 @@ Shader "Custom/FrenelLambert"
                 // PBR用
                 float _Metallic;
                 float _Smoothness;
-
-                float _Ambient;
             CBUFFER_END
+
+            // Fresnel Schlick
+            float3 FresnelSchlick(float cosTheta, float F90, float3 F0)
+            {
+                // pow(1 - cos,5) は Schlick の近似
+                return (F0 + (F90 - F0) * pow(1.0f - cosTheta, 5.0f));
+            }
 
             /// <summary>
             /// フレネル反射を考慮した拡散反射を計算
@@ -110,14 +113,15 @@ Shader "Custom/FrenelLambert"
                 // 光源に向かうベクトルとハーフベクトル
                 // 光が平行に入射したときの拡散反射量を求める
                 float Fd90 = energyBias + 2.0f * roughness * dotLH * dotLH;
+                float3 F0 = float3(1.0f, 1.0f, 1.0f); // 完全反射のときのフレネル反射率は1.0とする
                 
                 // 法線と光源に向かうベクトルを利用して拡散反射率を求める
                 float dotNL = saturate(dot(N, L));
-                float FL = (1.0f + (Fd90 - 1.0f) * pow(1.0f - dotNL, 5.0f));
+                float FL = FresnelSchlick(dotNL, Fd90, F0).r;
                 
                 // 法線と視線に向かうベクトルを利用して拡散反射率を求める
                 float dotNV = saturate(dot(N, V));
-                float FV = (1.0f + (Fd90 - 1.0f) * pow(1.0f - dotNV, 5.0f));
+                float FV = FresnelSchlick(dotNV, Fd90, F0).r;
                 
                 // それぞれの拡散反射率を掛け合わせて、エネルギー保存の法則を満たすように正規化する
                 return (FL * FV) * energyFactor;
@@ -140,7 +144,7 @@ Shader "Custom/FrenelLambert"
 
                 // 拡散反射の影響 (1に近いと拡散反射は消滅・0に近いと拡散反射が強くなる)
                 float diffuseThreshold = 1 - _Metallic;
-                float roughness = _Smoothness;
+                float roughness = 1 - _Smoothness;
                 
                 half4 albedo = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv) * _BaseColor;
 
