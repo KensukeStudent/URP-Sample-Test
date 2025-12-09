@@ -1,4 +1,4 @@
-Shader "Custom/cook-torrance-fixed"
+Shader "Custom/cook-torrance2"
 {
     Properties
     {
@@ -215,19 +215,27 @@ Shader "Custom/cook-torrance-fixed"
 
                 // direct specular
                 // Specular (Cook-Torrance)
-                float3 specularBRDF = CookTorranceSpecular(N, V, L, F0, roughness) * mainLight.color.rgb;
+                float3 specularBRDF = CookTorranceSpecular(N, V, L, F0, lerp(0.15, 1.0, roughness)) * mainLight.color.rgb;
                 float shadowAtten = mainLight.shadowAttenuation; // GetMainLight(IN.shadowCoord) でセット済み
                 float3 specular = specularBRDF * shadowAtten;
 
                 // --- IBL (environment/specular) ---
                 float3 R = reflect(-V, N); // reflection vector
 
-                float3 env = DecodeHDREnvironment(SAMPLE_TEXTURECUBE(unity_SpecCube0, samplerunity_SpecCube0, R), unity_SpecCube0_HDR);
-                float3 ambientSpecularIBL = env;
+                // float3 env = DecodeHDREnvironment(SAMPLE_TEXTURECUBE(unity_SpecCube0, samplerunity_SpecCube0, R), unity_SpecCube0_HDR);
+                // float3 ambientSpecularIBL = env;
 
-                // multiply by Fresnel to tint specular IBL by F
-                float3 F_env = FresnelSchlick(saturate(dot(R, V)), F0);
-                float3 specularIBL = ambientSpecularIBL * F_env * lerp(0.0, 0.5, _Smoothness);
+                // // multiply by Fresnel to tint specular IBL by F
+                // float3 F_env = FresnelSchlick(saturate(dot(R, V)), F0, 1.5);
+                // float3 specularIBL = ambientSpecularIBL * F_env * lerp(0.0, 1, _Metallic) * lerp(0.0, 1, _Smoothness);
+
+                // ====== 追加: Reflection Probe (IBL) ======
+                float mip = roughness * UNITY_SPECCUBE_LOD_STEPS;
+                float4 env = SAMPLE_TEXTURECUBE_LOD(unity_SpecCube0, samplerunity_SpecCube0, R, mip);
+                float3 envColor = DecodeHDREnvironment(env, unity_SpecCube0_HDR);
+
+                // ====== 環境鏡面を Fresnel でブレンド ======
+                float3 specularIBL = envColor * FresnelSchlick(NdotV, F0) * lerp(0.0, 1, _Metallic);
 
                 // Diffuseの計算 ------------------------------------------------------------
 

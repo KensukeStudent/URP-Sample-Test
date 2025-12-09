@@ -173,7 +173,7 @@ Shader "Custom/cook-torrance-fixed"
                 ambientDiffuseSH *= albedo * (1.0 - metallic); // match energy conservation for diffuse indirect
 
                 // combine
-                float3 color = specular + specularIBL;
+                float3 color = (specular + specularIBL) * albedo;
 
                 // ガンマ補正はマテリアルパイプライン側で行うことが多い
                 return half4(color, 1.0);
