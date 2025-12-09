@@ -1,4 +1,4 @@
-Shader "Custom/cook-torrance-fixed"
+Shader "Custom/cook-torrance3"
 {
     Properties
     {
