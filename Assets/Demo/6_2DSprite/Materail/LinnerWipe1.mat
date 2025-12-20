@@ -21,8 +21,8 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: LinnerWipe1
-  m_Shader: {fileID: 4800000, guid: 76230428688822b45af28220ba088f7b, type: 3}
-  m_Parent: {fileID: 2100000, guid: 38b5945e975798f4eb5de4bec494dc21, type: 2}
+  m_Shader: {fileID: 4800000, guid: 9fefcf00ff59d524895d3fefa966ee1a, type: 3}
+  m_Parent: {fileID: 2100000, guid: 75230393b0b244244b59f90ca1f9fcb8, type: 2}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
   m_InvalidKeywords: []
@@ -39,9 +39,10 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
+    - _EllipseScale: 2.35
     - _WipeDirX: 0
     - _WipeDirY: 0
-    - _WipeSize: 0
+    - _WipeSize: 0.429
     m_Colors: []
   m_BuildTextureStacks: []
   m_AllowLocking: 1
