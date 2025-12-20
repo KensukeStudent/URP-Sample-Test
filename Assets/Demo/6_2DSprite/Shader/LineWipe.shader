@@ -1,4 +1,4 @@
-Shader "Custom/EllipseWipe"
+Shader "Custom/LineWipe"
 {
     Properties
     {
@@ -6,7 +6,10 @@ Shader "Custom/EllipseWipe"
         [MainTexture] _BaseMap("Base Map", 2D) = "white" {}
 
         _WipeSize("Wipe Size", Range(0.0, 1.0)) = 0.0
-        _EllipseScale("Ellipse Scale", Range(1.0, 10.0)) = 1.0
+        _PixelWidth("Pixel Width", Range(0.0, 1.0)) = 0.0
+        _PixelKill("Pixel Kill", Range(0.0, 1.0)) = 0.0
+        _WipeDirX("Wipe DirX", Range(-1.0, 1.0)) = 0.0
+        _WipeDirY("Wipe DirY", Range(-1.0, 1.0)) = 0.0
     }
 
     SubShader
@@ -42,7 +45,10 @@ Shader "Custom/EllipseWipe"
                 float4 _BaseMap_ST;
 
                 float _WipeSize;
-                float _EllipseScale;
+                float _PixelWidth;
+                float _PixelKill;
+                float _WipeDirX;
+                float _WipeDirY;
             CBUFFER_END
 
             Varyings vert(Attributes IN)
@@ -55,22 +61,30 @@ Shader "Custom/EllipseWipe"
 
             half4 frag(Varyings IN) : SV_Target
             {
-                float aspect = _ScreenParams.x / _ScreenParams.y;
+                // --------------------------------------------------
+                // 縦じまマスク
+                // --------------------------------------------------
+                float stripe = fmod(IN.uv.x, _PixelKill);
+                float width = 1 - _PixelWidth;
+                clip(stripe - width * _PixelKill);
 
-                float2 center = float2(0.5, 0.5);
+                // --------------------------------------------------
+                // ワイプ方向
+                // --------------------------------------------------
+                float2 dir = normalize(float2(_WipeDirX, _WipeDirY));
 
-                // 中心からのベクトル
-                float2 d = IN.uv - center;
+                float2 uv = IN.uv - 0.5;
 
-                // ★ ここで補正（X を基準にする例）
-                d.x *= aspect;
-                d.x /= _EllipseScale; // 正規化した後に楕円になるように割る
+                // 射影値 [-range, +range]
+                float wipeValue = dot(dir, uv);
 
-                float maxLen = length(float2(0.5 * aspect / _EllipseScale, 0.5));
+                // 射影最大距離
+                float wipeRange = abs(dir.x) + abs(dir.y);
 
-                float dist = length(d) / maxLen;
+                // [0, 1] に正規化
+                wipeValue = wipeValue / wipeRange + 0.5;
 
-                clip(dist - _WipeSize);
+                clip(_WipeSize - wipeValue);
 
                 return SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv) * _BaseColor;
             }
