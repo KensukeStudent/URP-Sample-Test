@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: ValueBlockNoise
-  m_Shader: {fileID: 4800000, guid: e783e660579e98e4fabcec3c5caa9e59, type: 3}
+  m_Name: PerlinNoise
+  m_Shader: {fileID: 4800000, guid: de7586acc0ab42748b960c9ebf4dbef7, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
