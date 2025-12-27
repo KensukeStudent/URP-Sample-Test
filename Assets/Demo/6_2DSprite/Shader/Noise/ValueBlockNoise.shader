@@ -62,17 +62,29 @@ Shader "Custom/ValueBlockNoise"
 
             float valueNoise(float2 p)
             {
-                float2 i = floor(p);
-                float2 f = frac(p);
+                float2 i = floor(p); // 整数部分
+                float2 f = frac(p); // 0〜1の範囲の小数部分
 
                 // 4つの隅のハッシュ値を取得
+                // イメージとして、ノイズ解像度(例えば8x8)の1セルとなりを設定
+                // ▢▢▢▢▢▢▢▢ // 8x8のセル(0,0) ~ (8,8),2つのセルは繋がっているもの
+                // ▢▢▢▢▢▢▢▢
+                // ▢▢▢▢▢▢▢▢
+                // ▢▢▢▢▢▢▢▢
+                // ▢▢▢▢▢▢▢▢
+                // ▢▢▢▢▢▢▢▢
+                // ▢▢▢▢▢▢▢▢
+                // ▢▢▢▢▢▢▢▢
                 float v00 = hash(i);
                 float v10 = hash(i + float2(1.0, 0.0));
                 float v01 = hash(i + float2(0.0, 1.0));
                 float v11 = hash(i + float2(1.0, 1.0));
 
-                // 補間
+                // 補間, y = -2x^3 + 3x^2 の0~1の間がなだらかな関数
+                // https://www.geogebra.org/graphing?lang=ja で確認可能
                 float2 u = f * f * (3.0 - 2.0 * f);
+
+                // 各4隅のセルの値を補完した値を取得
                 return lerp(lerp(v00, v10, u.x), lerp(v01, v11, u.x), u.y);
             }
 
@@ -81,6 +93,7 @@ Shader "Custom/ValueBlockNoise"
                 // 時間を段階化（例：1秒ごと）
                 float t = floor(_Time.y * _ChangeRate);
 
+                // In.uv * N : ノイズの解像度 8x8のブロック
                 float noise = valueNoise(IN.uv * 8 + t / _Smoothness);
 
                 return half4(noise, noise, noise, 1);
