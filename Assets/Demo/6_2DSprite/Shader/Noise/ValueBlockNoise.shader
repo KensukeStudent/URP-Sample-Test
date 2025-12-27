@@ -45,19 +45,19 @@ Shader "Custom/ValueBlockNoise"
                 float _Smoothness;
             CBUFFER_END
 
-            float hash(float2 p)
-            {
-                p = frac(p * 0.3183099 + 0.1);
-                p *= 17.0;
-                return frac(p.x * p.y * (p.x + p.y));
-            }
-
             Varyings vert(Attributes IN)
             {
                 Varyings OUT;
                 OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
                 OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap);
                 return OUT;
+            }
+
+            float hash(float2 p)
+            {
+                p = frac(p * 0.3183099 + 0.1);
+                p *= 17.0;
+                return frac(p.x * p.y * (p.x + p.y));
             }
 
             float valueNoise(float2 p)
