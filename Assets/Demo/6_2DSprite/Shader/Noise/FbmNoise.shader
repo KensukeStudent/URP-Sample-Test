@@ -1,4 +1,4 @@
-Shader "Custom/PerlinBlockNoise"
+Shader "Custom/FbmNoise"
 {
     Properties
     {
@@ -109,19 +109,50 @@ Shader "Custom/PerlinBlockNoise"
                 return lerp(nx0, nx1, u.y);
             }
 
+            // p: uv座標
+            // timer: 時間変数
+            // octaves: オクターブ数
+            float fbmNoise(float2 p, float timer, int octaves)
+            {
+                float fbm = 0.0;
+
+                float amplitude = 0.5;   // 振幅（最初は大きめ）
+                float frequency = 8.0;   // 周波数（基本解像度）
+
+                float amplitudeSum = 0.0; // 振幅の合計（正規化用）
+
+                for (int i = 0; i < octaves; i++)
+                {
+                    // Perlinは -1〜1
+                    float noise = perlinNoise(p * frequency + timer);
+
+                    fbm += noise * amplitude;
+
+                    amplitudeSum += amplitude;
+
+                    amplitude *= 0.5;    // 弱くする
+                    frequency *= 2.0;    // 細かくする
+                }
+
+                // -1〜1 → 0〜1になるかシュミレート
+                // amplitudeSum = 1.0 + 0.5 + 0.25 + 0.125 = 1.875
+                // fbm = -1 * 1.875
+                // -1.875/1.875 = -1
+                // -1 * 0.5 + 0.5 = 0
+                fbm /= amplitudeSum;
+                return fbm * 0.5 + 0.5;
+            }
+
             half4 frag(Varyings IN) : SV_Target
             {
                 // 時間を段階化（例：1秒ごと）
                 float t = floor(_Time.y * _ChangeRate);
 
-                // In.uv * N : ノイズの解像度 8x8のブロック
-                // 内積の結果を補完するので-1~1 の範囲のノイズを生成される
-                float noise = perlinNoise(IN.uv * 8 + t / _Smoothness);
+                float timer = t / _Smoothness;
+                int octaves = 3;
+                float fbm = fbmNoise(IN.uv, timer, octaves);
 
-                // ノイズの値を0〜1に正規化
-                noise = noise * 0.5 + 0.5;
-
-                return half4(noise, noise, noise, 1);
+                return half4(fbm, fbm, fbm, 1);
             }
             ENDHLSL
         }
