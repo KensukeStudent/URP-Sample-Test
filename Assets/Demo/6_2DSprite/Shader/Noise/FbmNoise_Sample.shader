@@ -143,7 +143,7 @@ Shader "Custom/FbmNoise_Sample"
                 // -1.875/1.875 = -1
                 // -1 * 0.5 + 0.5 = 0
                 fbm /= amplitudeSum;
-                return fbm * 0.5 + 0.5;
+                return fbm; // [-1, 1]の範囲内なので色としては使えないため変換が必要[0, 1]など
             }
 
             half4 frag(Varyings IN) : SV_Target
@@ -151,14 +151,8 @@ Shader "Custom/FbmNoise_Sample"
                 float t = floor(_Time.y * _ChangeRate);
                 float timer = t / _Smoothness;
 
-                float fbm = fbmNoise(IN.uv, timer, 3); // [0,1]
-
-                // -0.5〜0.5 に戻して歪みに使う
-                float distortion = fbm - 0.5; // 上下左右ははみ出るけど歪みとしては許容範囲
-
-                // uv:(1,1) + fbm:土0.5 = max(1.5,1.5) min(0.5,0.5)
-                // uv:(0,0) + fbm:土0.5 = max(0.5,0.5) min(-0.5,-0.5)
-                float2 uv = IN.uv + distortion * _FbmScale;
+                float fbm = fbmNoise(IN.uv, timer, 3); // [-1,1]
+                float2 uv = IN.uv + fbm * _FbmScale; // fbmの範囲が[-1,1]だが、うまいことuv[0,1]に収まっていそう
 
                 half4 color = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uv) * _BaseColor;
                 return color;
