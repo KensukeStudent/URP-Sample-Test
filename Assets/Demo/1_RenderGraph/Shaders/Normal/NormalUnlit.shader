@@ -1,4 +1,4 @@
-Shader "Custom/NewUnlitUniversalRenderPipelineShader"
+Shader "Custom/NormalUnlit"
 {
     SubShader
     {
@@ -40,9 +40,9 @@ Shader "Custom/NewUnlitUniversalRenderPipelineShader"
 
             half4 frag(Varyings IN) : SV_Target
             {
-                float3 ddxPosition = ddx(IN.worldPos);
-                float3 ddyPosition = ddy(IN.worldPos);
-                float3 albedo = normalize(cross(ddxPosition, ddyPosition));
+                // float3 ddxPosition = ddx(IN.worldPos);
+                // float3 ddyPosition = ddy(IN.worldPos);
+                // float3 albedo = normalize(cross(ddxPosition, ddyPosition));
 
                 return half4(IN.normalWS, 1.0);
             }
