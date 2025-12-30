@@ -30,11 +30,6 @@ public class GaussRenderFeature : ScriptableRendererFeature
             this.settings.material
         );
 
-        // this.combinePass = new CombinePass(
-        //     this.settings.renderPassEvent,
-        //     this.settings.material
-        // );
-
         // ガウス分布作成
         CreateWieght(dispersion * dispersion);
     }

@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: de640fe3d0db1804a85f9fc8f5cadab6, type: 3}
-  m_Name: 14_BlitRenderer_Gauss
+  m_Name: 15_BlitRenderer_Bloom1
   m_EditorClassIdentifier: 
   debugShaders:
     debugReplacementPS: {fileID: 4800000, guid: cf852408f2e174538bcd9b7fda1c5ae7, type: 3}
@@ -25,8 +25,8 @@ MonoBehaviour:
     probeSamplingDebugTexture: {fileID: 0}
     probeVolumeBlendStatesCS: {fileID: 0}
   m_RendererFeatures:
-  - {fileID: 858021974108556337}
-  m_RendererFeatureMap: 314c3880704ee80b
+  - {fileID: 8455109528345066072}
+  m_RendererFeatureMap: 583a07a651955675
   m_UseNativeRenderPass: 0
   xrSystemData: {fileID: 0}
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
@@ -55,7 +55,7 @@ MonoBehaviour:
   m_DepthTextureFormat: 0
   m_AccurateGbufferNormals: 0
   m_IntermediateTextureMode: 1
---- !u!114 &858021974108556337
+--- !u!114 &8455109528345066072
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -64,11 +64,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 873888f8c74e198428d890f2788e886b, type: 3}
-  m_Name: GaussRenderFeature
-  m_EditorClassIdentifier: Assembly-CSharp::GaussRenderFeature
+  m_Script: {fileID: 11500000, guid: 7c8f772d80ffb3249b1d2b94474432d7, type: 3}
+  m_Name: Bloom1RenderFeature
+  m_EditorClassIdentifier: Assembly-CSharp::Bloom1RenderFeature
   m_Active: 1
   settings:
     renderPassEvent: 500
-    material: {fileID: 2100000, guid: 5ed05305173d4c54c9a0e48f1bc2e7d3, type: 2}
+    material: {fileID: 2100000, guid: 161d8f24ab4c4644395050254ec0627c, type: 2}
   dispersion: 5
