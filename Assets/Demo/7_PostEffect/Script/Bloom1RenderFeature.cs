@@ -147,8 +147,8 @@ public class Bloom1RenderFeature : ScriptableRendererFeature
             //         cmd.DrawRendererList(passData.rendererListHandle);
             //     });
             // }
-            
-#endregion
+
+            #endregion
 
 
             // 輝度テクスチャー
@@ -171,27 +171,66 @@ public class Bloom1RenderFeature : ScriptableRendererFeature
                 builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
                 {
                     RasterCommandBuffer cmd = graphContext.cmd;
-
                     Blitter.BlitTexture(cmd, passData.sourceTextureHandle, new Vector4(1, 1, 0, 0), passData.material, 0);
                 });
             }
 
-            gaussRenderer.RecordRenderGraph(renderGraph, cameraData.cameraTargetDescriptor, cameraColorTextureHandler);
+            // ------------------------------------------------------------ 
+            // luminance texture -> gauss texture x4
+            // ------------------------------------------------------------
 
-            // luminanceTexture RT -> GaussTexture RT
-            // 元サイズから半分サイズに縮小
+            // グローバル変数用登録 indexは0から始まるので注意
+            // _GaussTexture0 ～ _GaussTexture3
+            TextureHandle gaussTextureTargetHandle = luminanceTextureHandle;
+            for (int i = 0; i < 4; i++)
+            {
+                gaussRenderer.RecordRenderGraph(renderGraph, cameraData.cameraTargetDescriptor, gaussTextureTargetHandle, Shader.PropertyToID("_GaussTexture" + i));
+                gaussTextureTargetHandle = gaussRenderer.TextureHandle;
+            }
 
-            // gaussYTexture RT -> camera color RT
+            // ------------------------------------------------------------ 
+            // camera color texture -> bloom texture
+            // ------------------------------------------------------------
+
+            // ブルームテクスチャー
+            TextureHandle bloomTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_BloomTexture", true, FilterMode.Point);
+
+            // camera color RT -> bloom texture
+            using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
+            {
+                builder.UseTexture(cameraColorTextureHandler, AccessFlags.Read);
+
+                builder.SetRenderAttachment(bloomTextureHandle, 0, AccessFlags.Write);
+
+                // Resources/References for pass execution
+                // Blit source texture
+                passData.sourceTextureHandle = cameraColorTextureHandler;
+                // Blit material
+                passData.material = material;
+
+                // 1パス目を使用
+                builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
+                {
+                    RasterCommandBuffer cmd = graphContext.cmd;
+                    Blitter.BlitTexture(cmd, passData.sourceTextureHandle, new Vector4(1, 1, 0, 0), passData.material, 1);
+                });
+            }
+
+            // ------------------------------------------------------------ 
+            // bloom texture -> camera color texture
+            // ------------------------------------------------------------
+
+            // bloom texture RT -> camera color RT
             using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
             {
                 // Set tempRT for read
-                builder.UseTexture(gaussRenderer.TextureHandle, AccessFlags.Read);
+                builder.UseTexture(bloomTextureHandle, AccessFlags.Read);
                 // Set camera color RT for write
                 builder.SetRenderAttachment(cameraColorTextureHandler, 0, AccessFlags.Write);
 
                 // Resources/References for pass execution
                 // Blit source texture
-                passData.sourceTextureHandle = gaussRenderer.TextureHandle;
+                passData.sourceTextureHandle = bloomTextureHandle;
                 passData.material = null;
 
                 builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>

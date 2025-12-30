@@ -40,7 +40,7 @@ public class GaussRenderer
     /// <summary>
     /// ガウスブラー実行
     /// </summary>
-    public void RecordRenderGraph(RenderGraph renderGraph, RenderTextureDescriptor cameraTargetDescriptor, TextureHandle sourceTextureHandle)
+    public void RecordRenderGraph(RenderGraph renderGraph, RenderTextureDescriptor cameraTargetDescriptor, TextureHandle sourceTextureHandle, int propertyId)
     {
         // TextureHandle作成
         CreateTextureHandle(renderGraph, cameraTargetDescriptor, sourceTextureHandle);
@@ -89,12 +89,18 @@ public class GaussRenderer
             // Blit material
             passData.material = material;
 
+            // ShaderのGlobal変数への設定ができるように
+            // 要注意！
+            builder.AllowGlobalStateModification(true);
+            // 解説 *2
+            // negativeTextureHandleが描画された後に、"_NormalEdgeTexture"という名前のGlobalTextureに設定する
+            builder.SetGlobalTextureAfterPass(gaussYTextureHandle, propertyId);
+
             // Set render function
             // Y方向ブラー: 1パス目を使用
             builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
             {
                 RasterCommandBuffer cmd = graphContext.cmd;
-
                 Blitter.BlitTexture(cmd, passData.sourceTextureHandle, new Vector4(1, 1, 0, 0), passData.material, 1);
             });
         }
@@ -121,6 +127,8 @@ public class GaussRenderer
 
         // Y方向ブラー用テクスチャ作成
         gaussYTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_GaussYTexture", true, FilterMode.Bilinear);
+
+        Debug.Log($"before texture size: {textureDesc.width}x{textureDesc.height} -> gauss texture size: {desc.width}x{desc.height}");
     }
 
     /// <summary>

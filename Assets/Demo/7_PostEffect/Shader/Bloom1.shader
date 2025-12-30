@@ -2,8 +2,8 @@ Shader "Custom/Bloom1"
 {
     Properties
     {
-        [MainColor] _BaseColor("Base Color", Color) = (1, 1, 1, 1)
-        [MainTexture] _BaseMap("Base Map", 2D) = "white"
+        // [MainColor] _BaseColor("Base Color", Color) = (1, 1, 1, 1)
+        // [MainTexture] _BaseMap("Base Map", 2D) = "white"
     }
 
     SubShader
@@ -24,14 +24,6 @@ Shader "Custom/Bloom1"
             #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
-            TEXTURE2D(_BaseMap);
-            SAMPLER(sampler_BaseMap);
-
-            CBUFFER_START(UnityPerMaterial)
-                half4 _BaseColor;
-                float4 _BaseMap_ST;
-            CBUFFER_END
-
             half4 frag(Varyings input) : SV_Target
             {
                 float4 color = FragNearest(input);
@@ -49,6 +41,39 @@ Shader "Custom/Bloom1"
                 clip(t - 1.0f);
 
                 return color;
+            }
+            ENDHLSL
+        }
+
+        // 輝度のガウステクスチャー合成パス
+        Pass
+        {
+            Name "Luminance Gauss Combine"
+
+            HLSLPROGRAM
+
+            #pragma vertex Vert
+            #pragma fragment frag
+
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
+            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
+
+            TEXTURE2D(_GaussTexture0);
+            TEXTURE2D(_GaussTexture1);
+            TEXTURE2D(_GaussTexture2);
+            TEXTURE2D(_GaussTexture3);
+
+            half4 frag(Varyings input) : SV_Target
+            {
+                float4 color = SAMPLE_TEXTURE2D(_GaussTexture0, sampler_LinearClamp, input.texcoord);
+                color += SAMPLE_TEXTURE2D(_GaussTexture1, sampler_LinearClamp, input.texcoord);
+                color += SAMPLE_TEXTURE2D(_GaussTexture2, sampler_LinearClamp, input.texcoord);
+                color += SAMPLE_TEXTURE2D(_GaussTexture3, sampler_LinearClamp, input.texcoord);
+                color /= 4.0f;
+                color.a = 1.0f;
+                
+                return FragNearest(input) + color;
             }
             ENDHLSL
         }
