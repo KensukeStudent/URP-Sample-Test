@@ -7,13 +7,15 @@ public class GaussRenderer
 {
     private Material material;
 
+    private ProfilingSampler profilingSampler;
+
     private TextureHandle gaussXTextureHandle;
     private TextureHandle gaussYTextureHandle;
 
     /// <summary>
     /// ガウスブラー実行後のテクスチャハンドル
     /// </summary>
-    public TextureHandle GaussTextureHandle => gaussYTextureHandle;
+    public TextureHandle TextureHandle => gaussYTextureHandle;
 
     private class PassData
     {
@@ -29,6 +31,7 @@ public class GaussRenderer
     public GaussRenderer(Material material, float dispersion)
     {
         this.material = material;
+        this.profilingSampler = new ProfilingSampler(nameof(GaussRenderer));
 
         // ガウス分布の重みを計算してシェーダーに渡す
         CreateWieght(dispersion);
@@ -47,7 +50,7 @@ public class GaussRenderer
         // ------------------------------------------------------------
 
         // source texture -> gaussXTexture RT
-        using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass("GaussXPass", out PassData passData))
+        using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass("GaussXPass", out PassData passData, profilingSampler))
         {
             builder.UseTexture(sourceTextureHandle, AccessFlags.Read);
 
@@ -74,7 +77,7 @@ public class GaussRenderer
         // ------------------------------------------------------------
 
         // gaussXTexture RT -> gaussYTexture RT
-        using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass("GaussYPass", out PassData passData))
+        using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass("GaussYPass", out PassData passData, profilingSampler))
         {
             builder.UseTexture(gaussXTextureHandle, AccessFlags.Read);
 

@@ -34,7 +34,8 @@ public class Bloom1RenderFeature : ScriptableRendererFeature
 
         this.bloomPass = new Bloom1RenderPass(
             this.settings.renderPassEvent,
-            this.settings.material
+            this.settings.material,
+            gaussRenderer
         );
     }
 
@@ -62,6 +63,8 @@ public class Bloom1RenderFeature : ScriptableRendererFeature
             new ShaderTagId("SRPDefaultUnlit"),
         };
 
+        private GaussRenderer gaussRenderer;
+
         private class PassData
         {
             public RendererListHandle rendererListHandle;
@@ -69,10 +72,11 @@ public class Bloom1RenderFeature : ScriptableRendererFeature
             public Material material;
         }
 
-        public Bloom1RenderPass(RenderPassEvent renderPassEvent, Material material)
+        public Bloom1RenderPass(RenderPassEvent renderPassEvent, Material material, GaussRenderer gaussRenderer)
         {
             this.renderPassEvent = renderPassEvent;
             this.material = material;
+            this.gaussRenderer = gaussRenderer;
             this.profilingSampler = new ProfilingSampler(nameof(Bloom1RenderPass));
         }
 
@@ -172,6 +176,8 @@ public class Bloom1RenderFeature : ScriptableRendererFeature
                 });
             }
 
+            gaussRenderer.RecordRenderGraph(renderGraph, cameraData.cameraTargetDescriptor, cameraColorTextureHandler);
+
             // luminanceTexture RT -> GaussTexture RT
             // 元サイズから半分サイズに縮小
 
@@ -179,13 +185,13 @@ public class Bloom1RenderFeature : ScriptableRendererFeature
             using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
             {
                 // Set tempRT for read
-                builder.UseTexture(luminanceTextureHandle, AccessFlags.Read);
+                builder.UseTexture(gaussRenderer.TextureHandle, AccessFlags.Read);
                 // Set camera color RT for write
                 builder.SetRenderAttachment(cameraColorTextureHandler, 0, AccessFlags.Write);
 
                 // Resources/References for pass execution
                 // Blit source texture
-                passData.sourceTextureHandle = luminanceTextureHandle;
+                passData.sourceTextureHandle = gaussRenderer.TextureHandle;
                 passData.material = null;
 
                 builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
