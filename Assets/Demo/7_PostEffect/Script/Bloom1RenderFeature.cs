@@ -2,7 +2,6 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.Rendering.RenderGraphModule;
-using System.Collections.Generic;
 
 /// <summary>
 /// ブラーポストプロセス
@@ -56,18 +55,10 @@ public class Bloom1RenderFeature : ScriptableRendererFeature
     public class Bloom1RenderPass : ScriptableRenderPass
     {
         private Material material;
-        private List<ShaderTagId> shaderTagIds = new List<ShaderTagId>()
-        {
-            new ShaderTagId("UniversalForward"),
-            new ShaderTagId("UniversalForwardOnly"),
-            new ShaderTagId("SRPDefaultUnlit"),
-        };
-
         private GaussRenderer gaussRenderer;
 
         private class PassData
         {
-            public RendererListHandle rendererListHandle;
             public TextureHandle sourceTextureHandle;
             public Material material;
         }
@@ -108,48 +99,6 @@ public class Bloom1RenderFeature : ScriptableRendererFeature
             desc.width = Screen.width;
 
             TextureHandle cameraColorTextureHandler = resourceData.activeColorTexture;
-
-            #region DrawRenderersPass
-
-            // // テクスチャ作成
-            // TextureHandle drawTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_DrawTexture", true, FilterMode.Point);
-
-            // // Sorting criteria (default transparent)
-            // SortingCriteria sortingCriteria = cameraData.defaultOpaqueSortFlags;
-
-            // // Drawing settings
-            // DrawingSettings drawingSettings = RenderingUtils.CreateDrawingSettings(this.shaderTagIds, renderingData, cameraData, lightData, sortingCriteria);
-
-            // // RendererListHandle
-            // var filteringSettings = new FilteringSettings(RenderQueueRange.opaque, -1);
-            // RendererListParams rendererListParams = new RendererListParams(renderingData.cullResults, drawingSettings, filteringSettings);
-
-            // // Pass to draw renderers
-            // // Blitter.BlitTextureは使用できないようだ
-            // using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
-            // {
-            //     passData.rendererListHandle = renderGraph.CreateRendererList(rendererListParams);
-
-            //     // Set pass to use rendererListHandle
-            //     builder.UseRendererList(passData.rendererListHandle);
-
-            //     // Set render target (custom render target)
-            //     builder.SetRenderAttachment(drawTextureHandle, 0, AccessFlags.Write);
-
-            //     // 必ず実行必要パス
-            //     builder.AllowPassCulling(false);
-
-            //     // Set render function
-            //     builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
-            //     {
-            //         RasterCommandBuffer cmd = graphContext.cmd;
-            //         // Draw renderer list
-            //         cmd.DrawRendererList(passData.rendererListHandle);
-            //     });
-            // }
-
-            #endregion
-
 
             // 輝度テクスチャー
             TextureHandle luminanceTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_LuminanceTexture", true, FilterMode.Point);
