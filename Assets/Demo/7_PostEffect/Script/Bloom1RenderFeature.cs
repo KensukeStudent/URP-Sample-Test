@@ -19,12 +19,19 @@ public class Bloom1RenderFeature : ScriptableRendererFeature
     [SerializeField] private Settings settings = new Settings();
     private Bloom1RenderPass bloomPass;
 
+    [SerializeField]
+    private Material gaussMaterial = null;
+
     [Header("ガウス分布パラメータ")]
     [SerializeField, Range(1, 10)]
     private float dispersion = 5;
 
+    private GaussRenderer gaussRenderer;
+
     public override void Create()
     {
+        gaussRenderer = new GaussRenderer(gaussMaterial, dispersion);
+
         this.bloomPass = new Bloom1RenderPass(
             this.settings.renderPassEvent,
             this.settings.material

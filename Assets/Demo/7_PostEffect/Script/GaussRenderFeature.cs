@@ -17,7 +17,6 @@ public class GaussRenderFeature : ScriptableRendererFeature
 
     [SerializeField] private Settings settings = new Settings();
     private GaussXRenderPass gaussXPass;
-    //private CombinePass combinePass;
 
     [Header("ガウス分布パラメータ")]
     [SerializeField, Range(1, 10)]
