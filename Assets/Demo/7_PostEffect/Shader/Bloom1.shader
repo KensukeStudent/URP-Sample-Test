@@ -3,7 +3,7 @@ Shader "Custom/Bloom1"
     Properties
     {
         _Threshold("Threshold", Range(0.0, 1.0)) = 1.0
-        _BloomColor("BloomColor", Color) = (1,1,1,1)
+        _BloomPower("BloomPower", Range(1.0, 10.0)) = 1.0
     }
 
     SubShader
@@ -26,6 +26,7 @@ Shader "Custom/Bloom1"
 
             CBUFFER_START(UnityPerMaterial)
                 float _Threshold;
+                float _BloomPower;
             CBUFFER_END
 
             float4 frag(Varyings input) : SV_Target
@@ -44,7 +45,7 @@ Shader "Custom/Bloom1"
                 // 今回の実装はカラーの明るさが1以下ならピクセルキルする
                 clip(t - _Threshold);
 
-                return color;
+                return color * _BloomPower;
             }
             ENDHLSL
         }
@@ -63,10 +64,6 @@ Shader "Custom/Bloom1"
             #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
-            CBUFFER_START(UnityPerMaterial)
-                float4 _BloomColor;
-            CBUFFER_END
-
             TEXTURE2D(_GaussTexture0);
             TEXTURE2D(_GaussTexture1);
             TEXTURE2D(_GaussTexture2);
@@ -81,7 +78,7 @@ Shader "Custom/Bloom1"
                 color /= 4.0f;
                 color.a = 1.0f;
 
-                return FragNearest(input) + color * _BloomColor;
+                return FragNearest(input) + color;
             }
             ENDHLSL
         }
