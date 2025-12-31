@@ -17,6 +17,10 @@ public class GaussRenderer
     /// </summary>
     public TextureHandle TextureHandle => gaussYTextureHandle;
 
+#if UNITY_EDITOR
+        private float debugDispersion = -1;
+#endif
+
     private class PassData
     {
         public TextureHandle sourceTextureHandle;
@@ -33,6 +37,10 @@ public class GaussRenderer
         this.material = material;
         this.profilingSampler = new ProfilingSampler(nameof(GaussRenderer));
 
+#if UNITY_EDITOR
+        this.debugDispersion = dispersion;
+#endif
+
         // ガウス分布の重みを計算してシェーダーに渡す
         CreateWieght(dispersion);
     }
@@ -44,6 +52,10 @@ public class GaussRenderer
     {
         // TextureHandle作成
         CreateTextureHandle(renderGraph, cameraTargetDescriptor, sourceTextureHandle);
+
+#if UNITY_EDITOR
+        CreateWieght(debugDispersion); // ctrl+Sするとmaterialがリセットされるので再設定
+#endif
 
         // ------------------------------------------------------------ 
         // source -> gaussX texture
