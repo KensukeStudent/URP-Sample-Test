@@ -90,13 +90,10 @@ public class Bloom1RenderFeature : ScriptableRendererFeature
             // ------------------------------------------------------------
 
             // テクスチャー情報
-            // 16:9
             RenderTextureDescriptor desc = cameraData.cameraTargetDescriptor;
             desc.colorFormat = RenderTextureFormat.ARGBFloat; // Enable alpha
             desc.msaaSamples = 1;
             desc.depthBufferBits = 0;
-            desc.height = Screen.height;
-            desc.width = Screen.width;
 
             TextureHandle cameraColorTextureHandler = resourceData.activeColorTexture;
 
@@ -150,6 +147,8 @@ public class Bloom1RenderFeature : ScriptableRendererFeature
                 builder.UseTexture(cameraColorTextureHandler, AccessFlags.Read);
 
                 builder.SetRenderAttachment(bloomTextureHandle, 0, AccessFlags.Write);
+
+                builder.AllowPassCulling(false);
 
                 // Resources/References for pass execution
                 // Blit source texture
