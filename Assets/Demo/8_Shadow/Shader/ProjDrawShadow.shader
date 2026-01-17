@@ -1,4 +1,6 @@
-Shader "Custom/ProjShadow"
+// シャドウマップに影を書き込むシェーダー
+// オブジェクト単体へ割り当てる
+Shader "Custom/ProjDrawShadow"
 {
     Properties
     {
