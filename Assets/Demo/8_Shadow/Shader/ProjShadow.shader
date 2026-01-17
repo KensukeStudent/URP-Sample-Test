@@ -2,7 +2,7 @@ Shader "Custom/ProjShadow"
 {
     Properties
     {
-        [MainColor] _BaseColor("Base Color", Color) = (1, 1, 1, 1)
+        [MainColor] _BaseColor("Base Color", Color) = (0, 0, 0, 0)
     }
 
     SubShader
@@ -14,6 +14,9 @@ Shader "Custom/ProjShadow"
             Name "Forward"
             Tags { "LightMode"="UniversalForward" }
 
+            ZWrite On
+            ColorMask 0
+
             HLSLPROGRAM
 
             #pragma vertex vert
@@ -24,13 +27,11 @@ Shader "Custom/ProjShadow"
             struct Attributes
             {
                 float4 positionOS : POSITION;
-                float2 uv : TEXCOORD0;
             };
 
             struct Varyings
             {
                 float4 positionHCS : SV_POSITION;
-                float2 uv : TEXCOORD0;
             };
 
             CBUFFER_START(UnityPerMaterial)
@@ -41,7 +42,6 @@ Shader "Custom/ProjShadow"
             {
                 Varyings OUT;
                 OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
-                // OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap);
                 return OUT;
             }
 
