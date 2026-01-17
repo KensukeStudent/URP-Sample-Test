@@ -66,7 +66,9 @@ Shader "Custom/ProjShadow"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
+            CBUFFER_START(UnityPerMaterial)
             float4x4 _lightVP;
+            CBUFFER_END
 
             struct Attributes
             {
@@ -84,7 +86,7 @@ Shader "Custom/ProjShadow"
                 // world行列に変換 -> view行列に変換 -> proj行列に変換
                 // world行列は共通のものを使用する
                 float3 world = TransformObjectToWorld(IN.positionOS.xyz);
-                OUT.positionHCS = mul(float4(world, 1.0), _lightVP);
+                OUT.positionHCS = mul(_lightVP, float4(world, 1.0));
                 return OUT;
             }
 

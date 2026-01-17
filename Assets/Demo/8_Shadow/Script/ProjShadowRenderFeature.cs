@@ -49,6 +49,8 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
         private RenderTexture targetRenderTexture;
         private RTHandle targetRTHandle;
 
+        private Camera shadowCamera = null;
+
         private class PassData
         {
             public RendererListHandle rendererListHandle;
@@ -65,6 +67,8 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
 
             shaderTagIds.Clear();
             shaderTagIds.Add(new ShaderTagId("ProjShadow"));
+
+            shadowCamera = GameObject.FindWithTag("ShadowCamera").GetComponent<Camera>();
         }
 
         public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
@@ -152,26 +156,16 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
 
         private void SetMaterial()
         {
-            Light mainLight = RenderSettings.sun;
-            Vector3 lightDir = -mainLight.transform.forward;
-            float distance = 50.0f;
-            Vector3 lightPos = Vector3.zero - lightDir * distance;
+            var view = shadowCamera.worldToCameraMatrix;
 
-            // upを外積で求める必要あるかも
-            Matrix4x4 lightView = Matrix4x4.LookAt(lightPos, Vector3.zero, Vector3.up);
+            // ★これが重要
+            var proj = GL.GetGPUProjectionMatrix(
+                shadowCamera.projectionMatrix,
+                true // render into texture
+            );
 
-            float size = 30.0f;
-            float near = 0.1f;
-            float far = 100.0f;
-
-            Matrix4x4 lightProj =
-                Matrix4x4.Ortho(
-                    -size, size,
-                    -size, size,
-                    near, far
-                );
-
-            this.material.SetMatrix("_lightVP", lightView * lightProj);
+            Matrix4x4 lightVP = proj * view;
+            Shader.SetGlobalMatrix("_lightVP", lightVP);
         }
     }
 }
