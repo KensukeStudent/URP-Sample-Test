@@ -56,7 +56,7 @@ Shader "Custom/ProjDrawShadow"
 
         Pass
         {
-            Name "MyShadowPass"
+            Name "DrawShadow"
             Tags { "LightMode"="ProjShadow" } // 何でもいい
 
             ZWrite On
@@ -94,8 +94,8 @@ Shader "Custom/ProjDrawShadow"
 
             half4 frag(Varyings IN) : SV_Target
             {
-                // return IN.positionHCS.z / IN.positionHCS.w;
-                return half4(1, 0, 0, 1.0f);
+                // float a=IN.positionHCS.z / IN.positionHCS.w;
+                return half4(0.3f, 0.3f, 0.3f, 1.0f);
             }
             ENDHLSL
         }

@@ -17,6 +17,7 @@ MonoBehaviour:
     renderPassEvent: 500
     material: {fileID: 2100000, guid: a59b72959ea3c74469faa8508b605adf, type: 2}
     renderTexture: {fileID: 8400000, guid: a8ea390b71b0aaa4ebac09bb4655b849, type: 2}
+    renderTexture2: {fileID: 8400000, guid: fd8270f6ce05ab943a950522203f74c2, type: 2}
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
