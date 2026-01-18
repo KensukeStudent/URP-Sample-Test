@@ -210,8 +210,6 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
                 // we need to disable pass culling to ensure this pass will always run
                 builder.AllowPassCulling(false);
 
-                // builder.SetGlobalTextureAfterPass(cameraColorTextureHandler, Shader.PropertyToID("CameraColorTexture"));
-
                 // Set render function
                 builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
                 {
