@@ -94,8 +94,8 @@ Shader "Custom/ProjDrawShadow"
 
             half4 frag(Varyings IN) : SV_Target
             {
-                // float a=IN.positionHCS.z / IN.positionHCS.w;
-                return half4(0.3f, 0.3f, 0.3f, 1.0f);
+                float z = IN.positionHCS.z;
+                return half4(z, z, z, 1.0f);
             }
             ENDHLSL
         }

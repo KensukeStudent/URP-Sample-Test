@@ -9,49 +9,6 @@ Shader "Custom/ProjRecieverShadow"
     {
         Tags { "RenderType" = "Opaque" "RenderPipeline" = "UniversalPipeline" }
 
-        // Pass
-        // {
-        //     Name "Forward"
-        //     Tags { "LightMode"="UniversalForward" }
-
-        //     ZWrite On
-        //     ColorMask 0
-
-        //     HLSLPROGRAM
-
-        //     #pragma vertex vert
-        //     #pragma fragment frag
-
-        //     #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-
-        //     struct Attributes
-        //     {
-        //         float4 positionOS : POSITION;
-        //     };
-
-        //     struct Varyings
-        //     {
-        //         float4 positionHCS : SV_POSITION;
-        //     };
-
-        //     CBUFFER_START(UnityPerMaterial)
-        //         half4 _BaseColor;
-        //     CBUFFER_END
-
-        //     Varyings vert(Attributes IN)
-        //     {
-        //         Varyings OUT;
-        //         OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
-        //         return OUT;
-        //     }
-
-        //     half4 frag(Varyings IN) : SV_Target
-        //     {
-        //         return _BaseColor;
-        //     }
-        //     ENDHLSL
-        // }
-
         Pass
         {
             Name "RecieverShadow"
@@ -67,15 +24,12 @@ Shader "Custom/ProjRecieverShadow"
             struct Attributes
             {
                 float4 positionOS : POSITION;
-                float2 uv : TEXCOORD;
             };
 
             struct Varyings
             {
                 float4 positionHCS : SV_POSITION;
-                float2 uv : TEXCOORD;
-
-                float4 posInLVP : TEXCOORD1;
+                float4 posInLVP : TEXCOORD; // ライト方向から見た座標
             };
 
             TEXTURE2D(_ShadowTexture);
@@ -87,9 +41,11 @@ Shader "Custom/ProjRecieverShadow"
             Varyings vert(Attributes IN)
             {
                 Varyings OUT;
-                OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
-                OUT.uv = IN.uv;
 
+                // メインカメラからの座標に描画
+                OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
+
+                // ライト方向から見た座標を取得
                 float3 world = TransformObjectToWorld(IN.positionOS.xyz);
                 OUT.posInLVP = mul(_lightVP, float4(world, 1));
 
@@ -98,24 +54,28 @@ Shader "Custom/ProjRecieverShadow"
 
             half4 frag(Varyings IN) : SV_Target
             {
-                float4 color = float4(1,1,1,1);
+                // ===== 1. ライト空間 → NDC =====
+                float2 ndc = IN.posInLVP.xy / IN.posInLVP.w; // [-1-1]
 
-                // step-6 ライトビュースクリーン空間[-1~1]からUV空間[0~1]に座標変換
-                float2 shadowMapUV = IN.posInLVP.xy / IN.posInLVP.w;
-                shadowMapUV *= float2(0.5f, -0.5f); // [-0.5 ~ 0.5], yは[1~-1] ->[0~1]へ変換したいので-0.5
-                shadowMapUV += 0.5f; // [0~1]
+                // ===== 2. NDC → UV =====
+                float2 shadowUV = ndc.xy * float2(0.5f, -0.5f) + 0.5f; // [0-1]
 
-                // step-7 UV座標を使ってシャドウマップから影情報をサンプリング
-                float3 shadowMap = 1.0f;
-                if (shadowMapUV.x > 0.0f && shadowMapUV.x < 1.0f 
-                    && shadowMapUV.y > 0.0f && shadowMapUV.y < 1.0f)
+                // ライト空間のz値
+                float zInLVP = IN.posInLVP.z / IN.posInLVP.w;
+
+                // ===== 3. 範囲外は赤表示（デバッグ） =====
+                if (shadowUV.x < 0.0f && shadowUV.x > 1.0f &&
+                    shadowUV.y < 0.0f && shadowUV.y > 1.0f)
                 {
-                    shadowMap = SAMPLE_TEXTURE2D(_ShadowTexture, sampler_PointClamp, shadowMapUV).r;
+                    // シャドウマップのZ値と比較
+                    float zShadowMap = SAMPLE_TEXTURE2D(_ShadowTexture, sampler_PointClamp, shadowUV).r;
+                    if (zInLVP > zShadowMap) // 障害物が手前に存在する
+                    {
+                        return half4(0.3f, 0.3f, 0.3f, 1.0f);
+                    }
                 }
 
-                // step-8 サンプリングした影情報をテクスチャカラーに乗算する
-                color.xyz *= shadowMap;
-                return color;
+                return half4(1,1,1,1);
             }
             ENDHLSL
         }

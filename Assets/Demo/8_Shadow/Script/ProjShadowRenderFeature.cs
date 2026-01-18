@@ -36,6 +36,7 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
 
     protected override void Dispose(bool disposing)
     {
+        projShadow.Dispose();
     }
 
     // ------------------------------------------------
@@ -77,8 +78,6 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
 
             shaderTagIds2.Clear();
             shaderTagIds2.Add(new ShaderTagId("RecieverShadow"));
-
-            shadowCamera = GameObject.FindWithTag("ShadowCamera").GetComponent<Camera>();
         }
 
         public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
@@ -134,8 +133,6 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
 
             TextureHandle cameraColorTextureHandler = resourceData.activeColorTexture;
 
-            // TextureHandle shadowMapTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_ShadowMapTexture", true, FilterMode.Point);
-
             SetMaterial();
 
             // camera color RT -> shadowTexture RT
@@ -184,8 +181,6 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
             // 色情報とシャドウマップを組み合わせたテクスチャーを作成
             // ------------------------------------------------------------
 
-            // TextureHandle shadowColorTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_ShadowColorTexture", true, FilterMode.Point);
-
             // camera color RT -> shadowColorTexture RT
             using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
             {
@@ -230,6 +225,8 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
 
         private void SetMaterial()
         {
+            shadowCamera = GameObject.FindWithTag("ShadowCamera").GetComponent<Camera>(); // TODO: 確認用としてここで定義
+
             var view = shadowCamera.worldToCameraMatrix;
 
             // ★これが重要
@@ -240,6 +237,12 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
 
             Matrix4x4 lightVP = proj * view;
             Shader.SetGlobalMatrix("_lightVP", lightVP);
+        }
+
+        public void Dispose()
+        {
+            targetRTHandle?.Release();
+            targetRTHandle2?.Release();
         }
     }
 }
