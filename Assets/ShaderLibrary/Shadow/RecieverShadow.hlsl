@@ -41,31 +41,41 @@ Varyings vert(Attributes IN)
 
 half4 frag(Varyings IN) : SV_Target
 {
-    // ===== 1. ライト空間 → NDC =====
+    half4 color = half4(1,1,1,1);
+
+    // ----------------------------------------
+    // 1. ライト空間 → NDC
+    // ----------------------------------------
     float2 ndc = IN.posInLVP.xy / IN.posInLVP.w; // [-1-1]
 
-    // ===== 2. NDC → UV =====
+    // ----------------------------------------
+    // 2. NDC → UV
+    // ----------------------------------------
     float2 shadowUV = ndc.xy * float2(0.5f, -0.5f) + 0.5f; // [0-1]
 
+    // ----------------------------------------
+    // 3. 範囲内であれば影
+    // ----------------------------------------
+
     // ライト空間のz値
+    // 手前から0.0f - 1.0f
     float zInLVP = IN.posInLVP.z / IN.posInLVP.w;
 
-    // ===== 3. 範囲内であれば影 =====
     if (shadowUV.x > 0.0f && shadowUV.x < 1.0f &&
         shadowUV.y > 0.0f && shadowUV.y < 1.0f)
     {
         // シャドウマップのZ値と比較
+        // 手前から0.0f-1.0f
         float zShadowMap = SAMPLE_TEXTURE2D(_ShadowTexture, sampler_PointClamp, shadowUV).r;
-        
+
         // 障害物が手前に存在する
-        if (zInLVP > zShadowMap)
+        if (1 - zInLVP > 1 - zShadowMap)
         {
-            return half4(0.3f, 0.3f, 0.3f, 1.0f);
+            color *= 0.5f;
         }
     }
 
-    return half4(1,1,1,1);
-    // return SAMPLE_TEXTURE2D(_ShadowTexture, sampler_PointClamp, shadowUV);
+    return color;
 }
 
 #endif

@@ -1,4 +1,4 @@
-Shader "Custom/ProjShadowShader"
+Shader "Custom/RecieverShadow"
 {
     Properties
     {
@@ -39,25 +39,9 @@ Shader "Custom/ProjShadowShader"
 
         Pass
         {
-            Name "DrawShadow"
-            Tags { "LightMode"="ProjShadow" }
-            
-            HLSLPROGRAM
-
-            #pragma vertex vert
-            #pragma fragment frag
-            #include "Assets/ShaderLibrary/Shadow/DrawShadow.hlsl"
-
-            ENDHLSL
-        }
-
-        Pass
-        {
             Name "RecieverShadow"
             Tags { "LightMode" = "RecieverShadow" }
-            ZWrite On
-            ZTest LEqual
-            
+
             HLSLPROGRAM
 
             #pragma vertex vert
