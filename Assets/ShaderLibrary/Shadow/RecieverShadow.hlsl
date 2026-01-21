@@ -41,8 +41,6 @@ Varyings vert(Attributes IN)
 
 half4 frag(Varyings IN) : SV_Target
 {
-    half4 color = half4(1,1,1,1);
-
     // ----------------------------------------
     // 1. ライト空間 → NDC
     // ----------------------------------------
@@ -61,6 +59,8 @@ half4 frag(Varyings IN) : SV_Target
     // 手前から0.0f - 1.0f
     float zInLVP = IN.posInLVP.z / IN.posInLVP.w;
 
+    half4 color = half4(ndc.x, ndc.y, zInLVP, 1);
+
     if (shadowUV.x > 0.0f && shadowUV.x < 1.0f &&
         shadowUV.y > 0.0f && shadowUV.y < 1.0f)
     {
@@ -71,7 +71,7 @@ half4 frag(Varyings IN) : SV_Target
         // 障害物が手前に存在する
         if (1 - zInLVP > 1 - zShadowMap)
         {
-            color *= 0.5f;
+            color.xyz *= 0.5f;
         }
     }
 

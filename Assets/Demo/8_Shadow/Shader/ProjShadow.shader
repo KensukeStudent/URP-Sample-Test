@@ -25,6 +25,7 @@ Shader "Custom/ProjShadowShader"
         Pass
         {
             Name "Draw"
+            Tags { "LightMode"="UniversalForward" }
 
             HLSLPROGRAM
 
@@ -41,7 +42,7 @@ Shader "Custom/ProjShadowShader"
         {
             Name "DrawShadow"
             Tags { "LightMode"="ProjShadow" }
-            
+
             HLSLPROGRAM
 
             #pragma vertex vert
@@ -55,8 +56,6 @@ Shader "Custom/ProjShadowShader"
         {
             Name "RecieverShadow"
             Tags { "LightMode" = "RecieverShadow" }
-            ZWrite On
-            ZTest LEqual
             
             HLSLPROGRAM
 

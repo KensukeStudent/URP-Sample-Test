@@ -25,7 +25,8 @@ Shader "Custom/RecieverShadow"
         Pass
         {
             Name "Draw"
-
+            Tags { "LightMode"="UniversalForward" }
+            
             HLSLPROGRAM
 
             #pragma vertex PBRPassVertex

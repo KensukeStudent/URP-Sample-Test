@@ -125,7 +125,7 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
             // 影用カメラ位置から見たオブジェクトをシャドウマップへ書き込む
             // ------------------------------------------------------------
 
-            // テクスチャー情報
+            // // テクスチャー情報
             RenderTextureDescriptor desc = cameraData.cameraTargetDescriptor;
             desc.colorFormat = RenderTextureFormat.ARGB32;
             desc.msaaSamples = 1;
@@ -135,10 +135,14 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
 
             SetMaterial();
 
+            // シャドウテクスチャー
+            TextureHandle shadowTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_ShadowTexture", true, FilterMode.Point);
+
             // camera color RT -> shadowTexture RT
             using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
             {
-                TextureHandle targetTextureHandle = renderGraph.ImportTexture(this.targetRTHandle);
+                // TextureHandle targetTextureHandle = renderGraph.ImportTexture(this.targetRTHandle);
+                TextureHandle targetTextureHandle = shadowTextureHandle;
 
                 // Sorting criteria (default transparent)
                 SortingCriteria sortingCriteria = cameraData.defaultOpaqueSortFlags;
@@ -181,10 +185,14 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
             // 色情報とシャドウマップを組み合わせたテクスチャーを作成
             // ------------------------------------------------------------
 
+            // シャドウテクスチャー
+            TextureHandle shadowColorTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_ShadowColorTexture", true, FilterMode.Point);
+
             // camera color RT -> shadowColorTexture RT
             using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
             {
-                TextureHandle targetTextureHandle2 = renderGraph.ImportTexture(this.targetRTHandle2);
+                // TextureHandle targetTextureHandle2 = renderGraph.ImportTexture(this.targetRTHandle2);
+                TextureHandle targetTextureHandle2 = shadowColorTextureHandle;
 
                 // Sorting criteria (default transparent)
                 SortingCriteria sortingCriteria = cameraData.defaultOpaqueSortFlags;
@@ -217,6 +225,27 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
                     cmd.ClearRenderTarget(true, true, Color.clear);
                     // Draw renderer list
                     cmd.DrawRendererList(passData.rendererListHandle);
+                });
+            }
+
+            // 反映
+            // bloom texture RT -> camera color RT
+            using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
+            {
+                // Set tempRT for read
+                builder.UseTexture(shadowColorTextureHandle, AccessFlags.Read);
+                // Set camera color RT for write
+                builder.SetRenderAttachment(cameraColorTextureHandler, 0, AccessFlags.Write);
+
+                // Resources/References for pass execution
+                // Blit source texture
+                passData.sourceTextureHandle = shadowColorTextureHandle;
+                passData.material = null;
+
+                builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
+                {
+                    RasterCommandBuffer cmd = graphContext.cmd;
+                    Blitter.BlitTexture(cmd, passData.sourceTextureHandle, new Vector4(1, 1, 0, 0), 0, false);
                 });
             }
         }
