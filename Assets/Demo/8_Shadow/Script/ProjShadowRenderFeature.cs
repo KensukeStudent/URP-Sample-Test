@@ -137,10 +137,8 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
 
             SetMaterial();
 
-            // シャドウテクスチャー
-            //TextureHandle shadowTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_ShadowTexture", true, FilterMode.Point);
-
             // camera color RT -> shadowTexture RT
+            // TODO: プレビューで見たいのでRenderTextureで対応
             using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
             {
                 TextureHandle targetTextureHandle = renderGraph.ImportTexture(this.targetRTHandle);
@@ -187,10 +185,8 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
             // 色情報とシャドウマップを組み合わせたテクスチャーを作成
             // ------------------------------------------------------------
 
-            // シャドウテクスチャー
-            // TextureHandle shadowColorTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_ShadowColorTexture", true, FilterMode.Point);
-
             // camera color RT -> shadowColorTexture RT
+            // TODO: デバッグ用: 実際のモデル行が側では参照していない
             using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
             {
                 TextureHandle targetTextureHandle2 = renderGraph.ImportTexture(this.targetRTHandle2);

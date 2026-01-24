@@ -8,13 +8,15 @@
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-TEXTURE2D(_ShadowTexture);
+TEXTURE2D_SHADOW(_ShadowTexture);
+SAMPLER_CMP(sampler_ShadowTexture);
+
 float4x4 _lightVP;
 
 /// <summary>
 /// 影の影響があるかどうかを返す
 /// </summary>
-half ShadowValue(float3 positionWS) : SV_Target
+half ShadowAttenuation(float3 positionWS) : SV_Target
 {
     float4 posInLVP = mul(_lightVP, float4(positionWS, 1));
 
@@ -24,33 +26,25 @@ half ShadowValue(float3 positionWS) : SV_Target
     float2 ndc = posInLVP.xy / posInLVP.w; // [-1-1]
 
     // ----------------------------------------
-    // 2. NDC → UV
+    // 2. NDC → UV (xy: uv, z: depth)
     // ----------------------------------------
-    float2 shadowUV = ndc.xy * float2(0.5f, -0.5f) + 0.5f; // [0-1]
+    float3 shadowCoord;
+    shadowCoord.xy = ndc.xy * float2(0.5f, -0.5f) + 0.5f; // [0-1]
+    shadowCoord.z = posInLVP.z / posInLVP.w; // ライト空間のz値
 
     // ----------------------------------------
     // 3. 範囲内であれば影
     // ----------------------------------------
 
-    // ライト空間のz値
-    // 手前から0.0f - 1.0f
-    float zInLVP = posInLVP.z / posInLVP.w;
-
-    if (shadowUV.x > 0.0f && shadowUV.x < 1.0f &&
-        shadowUV.y > 0.0f && shadowUV.y < 1.0f)
+    if (shadowCoord.x > 0.0f && shadowCoord.x < 1.0f &&
+        shadowCoord.y > 0.0f && shadowCoord.y < 1.0f)
     {
-        // シャドウマップのZ値と比較
-        // 手前から0.0f-1.0f
-        float zShadowMap = SAMPLE_TEXTURE2D(_ShadowTexture, sampler_PointClamp, shadowUV).r;
-
-        // 障害物が手前に存在する
-        if (1 - zInLVP > 1 - zShadowMap)
-        {
-            return 0.3f;
-        }
+        // SampleCmpLevelZeroを使用してソフトシャドウを実装する
+        // 近傍4テクセル深度値を参照して遮蔽率を0.0f ~ 1.0fで返す
+        return SAMPLE_TEXTURE2D_SHADOW(_ShadowTexture, sampler_ShadowTexture, shadowCoord);
     }
 
-    return 1.0f;
+    return 0.0f;
 }
 
 #endif

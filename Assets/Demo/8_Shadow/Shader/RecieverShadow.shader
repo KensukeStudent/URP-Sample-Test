@@ -39,7 +39,11 @@ Shader "Custom/RecieverShadow"
             half4 frag(Varyings IN) : SV_Target
             {
                 half4 color = PBRPassFragment(IN);
-                color *= ShadowValue(IN.positionWS.xyz);
+                float shadowAttenuation = ShadowAttenuation(IN.positionWS.xyz);
+
+                // TODO: 深度の取り方をperspectiveにすると薄くでやすい
+                float shadow = lerp(1.0, 0.5, shadowAttenuation);
+                color.rgb *= shadow;
                 return color;
             }
 
@@ -85,7 +89,7 @@ Shader "Custom/RecieverShadow"
             half4 frag(Varyings IN) : SV_Target
             {
                 // 影の影響を取得
-                half shadow = ShadowValue(IN.positionWS.xyz);
+                half shadow = ShadowAttenuation(IN.positionWS.xyz);
                 return half4(shadow, shadow, shadow, 1.0);
             }
 
