@@ -4,6 +4,8 @@ using UnityEngine.Rendering.Universal;
 using UnityEngine.Rendering.RenderGraphModule;
 using System.Collections.Generic;
 
+// TODO: 描画順はBeforeRenderingShadows
+
 public class ProjShadowRenderFeature : ScriptableRendererFeature
 {
     [System.Serializable]

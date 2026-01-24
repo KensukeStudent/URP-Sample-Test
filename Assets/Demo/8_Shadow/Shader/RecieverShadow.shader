@@ -22,22 +22,31 @@ Shader "Custom/RecieverShadow"
     {
         Tags { "RenderType" = "Opaque" "RenderPipeline" = "UniversalPipeline" }
 
-        // Pass
-        // {
-        //     Name "Draw"
-        //     Tags { "LightMode"="UniversalForward" }
+        Pass
+        {
+            Name "Draw"
+            Tags { "LightMode"="UniversalForward" }
             
-        //     HLSLPROGRAM
+            HLSLPROGRAM
 
-        //     #pragma vertex PBRPassVertex
-        //     #pragma fragment PBRPassFragment
+            #pragma vertex PBRPassVertex
+            #pragma fragment frag
 
-        //     // 自作ライティング関数
-        //     #include "Assets/ShaderLibrary/MyLitForwardPass.hlsl"
+            // 自作ライティング関数
+            #include "Assets/ShaderLibrary/MyLitForwardPass.hlsl"
+            #include "Assets/ShaderLibrary/Shadow/RecieverShadow.hlsl"
 
-        //     ENDHLSL
-        // }
+            half4 frag(Varyings IN) : SV_Target
+            {
+                half4 color = PBRPassFragment(IN);
+                color *= ShadowValue(IN.positionWS.xyz);
+                return color;
+            }
 
+            ENDHLSL
+        }
+
+        // テスト用
         Pass
         {
             Name "RecieverShadow"
