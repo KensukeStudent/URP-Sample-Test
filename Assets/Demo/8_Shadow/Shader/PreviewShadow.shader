@@ -1,11 +1,5 @@
-Shader "Custom/NewUnlitUniversalRenderPipelineShader"
+Shader "Custom/DrawShadow"
 {
-    Properties
-    {
-        [MainColor] _BaseColor("Base Color", Color) = (1, 1, 1, 1)
-        [MainTexture] _BaseMap("Base Map", 2D) = "white"
-    }
-
     SubShader
     {
         Tags { "RenderType" = "Opaque" "RenderPipeline" = "UniversalPipeline" }
@@ -31,25 +25,19 @@ Shader "Custom/NewUnlitUniversalRenderPipelineShader"
                 float2 uv : TEXCOORD0;
             };
 
-            TEXTURE2D(_BaseMap);
-            SAMPLER(sampler_BaseMap);
-
-            CBUFFER_START(UnityPerMaterial)
-                half4 _BaseColor;
-                float4 _BaseMap_ST;
-            CBUFFER_END
+            TEXTURE2D(_ShadowTexture);
 
             Varyings vert(Attributes IN)
             {
                 Varyings OUT;
                 OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
-                OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap);
+                OUT.uv = IN.uv;
                 return OUT;
             }
 
             half4 frag(Varyings IN) : SV_Target
             {
-                half4 color = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv) * _BaseColor;
+                half4 color = SAMPLE_TEXTURE2D(_ShadowTexture, sampler_PointClamp, IN.uv);
                 return color;
             }
             ENDHLSL

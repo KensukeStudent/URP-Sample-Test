@@ -36,7 +36,7 @@ Varyings vert(Attributes IN)
 half4 frag(Varyings IN) : SV_Target
 {
     float z = IN.positionHCS.z;
-    return half4(z, z, z, 1.0f);
+    return half4(z, z, z, 1.0f); // 白がカメラに近い(1,1,1,1), 黒が遠い(0,0,0,1)
 }
 
 #endif

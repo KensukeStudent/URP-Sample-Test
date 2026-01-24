@@ -52,18 +52,18 @@ Shader "Custom/ProjShadowShader"
             ENDHLSL
         }
 
-        Pass
-        {
-            Name "RecieverShadow"
-            Tags { "LightMode" = "RecieverShadow" }
+        // Pass
+        // {
+        //     Name "RecieverShadow"
+        //     Tags { "LightMode" = "RecieverShadow" }
             
-            HLSLPROGRAM
+        //     HLSLPROGRAM
 
-            #pragma vertex vert
-            #pragma fragment frag
-            #include "Assets/ShaderLibrary/Shadow/RecieverShadow.hlsl"
+        //     #pragma vertex vert
+        //     #pragma fragment frag
+        //     #include "Assets/ShaderLibrary/Shadow/RecieverShadow.hlsl"
 
-            ENDHLSL
-        }
+        //     ENDHLSL
+        // }
     }
 }

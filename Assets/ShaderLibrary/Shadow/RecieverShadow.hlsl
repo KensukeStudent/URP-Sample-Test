@@ -71,7 +71,7 @@ half4 frag(Varyings IN) : SV_Target
         // 障害物が手前に存在する
         if (1 - zInLVP > 1 - zShadowMap)
         {
-            color.xyz *= 0.5f;
+            color.xyz = 1;
         }
     }
 
