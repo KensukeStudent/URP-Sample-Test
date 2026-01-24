@@ -228,7 +228,7 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
                 });
             }
 
-            // // 反映
+            // // 反映 ここで見るとテクスチャー上のモデルとカメラから見たモデルが重複して見えてしまう
             // // bloom texture RT -> camera color RT
             // using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
             // {

@@ -22,21 +22,21 @@ Shader "Custom/RecieverShadow"
     {
         Tags { "RenderType" = "Opaque" "RenderPipeline" = "UniversalPipeline" }
 
-        Pass
-        {
-            Name "Draw"
-            Tags { "LightMode"="UniversalForward" }
+        // Pass
+        // {
+        //     Name "Draw"
+        //     Tags { "LightMode"="UniversalForward" }
             
-            HLSLPROGRAM
+        //     HLSLPROGRAM
 
-            #pragma vertex PBRPassVertex
-            #pragma fragment PBRPassFragment
+        //     #pragma vertex PBRPassVertex
+        //     #pragma fragment PBRPassFragment
 
-            // 自作ライティング関数
-            #include "Assets/ShaderLibrary/MyLitForwardPass.hlsl"
+        //     // 自作ライティング関数
+        //     #include "Assets/ShaderLibrary/MyLitForwardPass.hlsl"
 
-            ENDHLSL
-        }
+        //     ENDHLSL
+        // }
 
         Pass
         {
@@ -47,9 +47,42 @@ Shader "Custom/RecieverShadow"
 
             #pragma vertex vert
             #pragma fragment frag
+
             #include "Assets/ShaderLibrary/Shadow/RecieverShadow.hlsl"
+
+            struct Attributes
+            {
+                float4 positionOS : POSITION;
+            };
+
+            struct Varyings
+            {
+                float4 positionHCS : SV_POSITION;
+                float3 positionWS : TEXCOORD;
+            };
+
+            Varyings vert(Attributes IN)
+            {
+                Varyings OUT;
+
+                // メインカメラからの座標に描画
+                OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
+
+                // ライト方向から見た座標を取得
+                OUT.positionWS = TransformObjectToWorld(IN.positionOS.xyz);
+                return OUT;
+            }
+
+            half4 frag(Varyings IN) : SV_Target
+            {
+                // 影の影響を取得
+                half shadow = ShadowValue(IN.positionWS.xyz);
+                return half4(shadow, shadow, shadow, 1.0);
+            }
 
             ENDHLSL
         }
+
+        // 最後に影を反映するパスを用意？
     }
 }

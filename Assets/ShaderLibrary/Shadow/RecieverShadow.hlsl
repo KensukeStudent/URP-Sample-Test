@@ -3,48 +3,25 @@
 // このファイルを使用する場合は Shader 内で以下を include してください:
 // #include "Assets/ShaderLibrary/Shadow/RecieverShadow.hlsl"
 
-#ifndef RECIEVER_SHADOW_INCLUDED
-#define RECIEVER_SHADOW_INCLUDED
+#ifndef RECIEVER_SHADOW_INCLUDED_2
+#define RECIEVER_SHADOW_INCLUDED_2
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-struct Attributes
-{
-    float4 positionOS : POSITION;
-};
-
-struct Varyings
-{
-    float4 positionHCS : SV_POSITION;
-    float4 posInLVP : TEXCOORD; // ライト方向から見た座標
-};
-
 TEXTURE2D(_ShadowTexture);
+float4x4 _lightVP;
 
-CBUFFER_START(UnityPerMaterial)
-    float4x4 _lightVP;
-CBUFFER_END
-
-Varyings vert(Attributes IN)
+/// <summary>
+/// 影の影響があるかどうかを返す
+/// </summary>
+half ShadowValue(float3 positionWS) : SV_Target
 {
-    Varyings OUT;
+    float4 posInLVP = mul(_lightVP, float4(positionWS, 1));
 
-    // メインカメラからの座標に描画
-    OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
-
-    // ライト方向から見た座標を取得
-    float3 world = TransformObjectToWorld(IN.positionOS.xyz);
-    OUT.posInLVP = mul(_lightVP, float4(world, 1));
-
-    return OUT;
-}
-
-half4 frag(Varyings IN) : SV_Target
-{
     // ----------------------------------------
     // 1. ライト空間 → NDC
     // ----------------------------------------
-    float2 ndc = IN.posInLVP.xy / IN.posInLVP.w; // [-1-1]
+    float2 ndc = posInLVP.xy / posInLVP.w; // [-1-1]
 
     // ----------------------------------------
     // 2. NDC → UV
@@ -57,9 +34,7 @@ half4 frag(Varyings IN) : SV_Target
 
     // ライト空間のz値
     // 手前から0.0f - 1.0f
-    float zInLVP = IN.posInLVP.z / IN.posInLVP.w;
-
-    half4 color = half4(ndc.x, ndc.y, zInLVP, 1);
+    float zInLVP = posInLVP.z / posInLVP.w;
 
     if (shadowUV.x > 0.0f && shadowUV.x < 1.0f &&
         shadowUV.y > 0.0f && shadowUV.y < 1.0f)
@@ -71,11 +46,11 @@ half4 frag(Varyings IN) : SV_Target
         // 障害物が手前に存在する
         if (1 - zInLVP > 1 - zShadowMap)
         {
-            color.xyz = 1;
+            return 0.3f;
         }
     }
 
-    return color;
+    return 1.0f;
 }
 
 #endif
