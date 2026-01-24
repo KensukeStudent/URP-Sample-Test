@@ -11,6 +11,8 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
     {
         public RenderPassEvent renderPassEvent = RenderPassEvent.AfterRenderingTransparents;
         public Material material = null;
+        public RenderTexture renderTexture;
+        public RenderTexture renderTexture2;
     }
 
     [SerializeField] private Settings settings = new Settings();
@@ -21,7 +23,9 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
     {
         this.projShadow = new ProjShadowRenderPass(
             this.settings.renderPassEvent,
-            this.settings.material
+            this.settings.material,
+            this.settings.renderTexture,
+            this.settings.renderTexture2
         );
     }
 
@@ -47,9 +51,12 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
 
         private List<ShaderTagId> shaderTagIds2 = new List<ShaderTagId>();
 
-        private Camera shadowCamera = null;
+        private RenderTexture targetRenderTexture;
+        private RenderTexture targetRenderTexture2;
+        private RTHandle targetRTHandle;
+        private RTHandle targetRTHandle2;
 
-        private TextureHandle shadowTextureHandle;
+        private Camera shadowCamera = null;
 
         private class PassData
         {
@@ -59,10 +66,12 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
             public Material material;
         }
 
-        public ProjShadowRenderPass(RenderPassEvent renderPassEvent, Material material)
+        public ProjShadowRenderPass(RenderPassEvent renderPassEvent, Material material, RenderTexture renderTexture, RenderTexture renderTexture2)
         {
             this.renderPassEvent = renderPassEvent;
             this.material = material;
+            this.targetRenderTexture = renderTexture;
+            this.targetRenderTexture2 = renderTexture2;
 
             shaderTagIds.Clear();
             shaderTagIds.Add(new ShaderTagId("ProjShadow"));
@@ -73,6 +82,34 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
 
         public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
         {
+            if (this.targetRenderTexture == null)
+            {
+                this.targetRTHandle?.Release();
+                return;
+            }
+
+            // Create RTHandle from render texture
+            if (this.targetRTHandle == null || this.targetRTHandle.rt != this.targetRenderTexture)
+            {
+                this.targetRTHandle?.Release();
+                this.targetRTHandle = RTHandles.Alloc(this.targetRenderTexture);
+            }
+
+            if (this.targetRenderTexture2 == null)
+            {
+                this.targetRTHandle2?.Release();
+                return;
+            }
+
+            // Create RTHandle from render texture
+            if (this.targetRTHandle2 == null || this.targetRTHandle2.rt != this.targetRenderTexture2)
+            {
+                this.targetRTHandle2?.Release();
+                this.targetRTHandle2 = RTHandles.Alloc(this.targetRenderTexture2);
+            }
+
+            // Recording phase; add passes to RenderGraph
+
             // FrameData objects
             // ResourceData
             UniversalResourceData resourceData = frameData.Get<UniversalResourceData>();
@@ -99,11 +136,14 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
             SetMaterial();
 
             // シャドウテクスチャー
-            shadowTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_ShadowTexture", true, FilterMode.Point);
+            //TextureHandle shadowTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_ShadowTexture", true, FilterMode.Point);
 
             // camera color RT -> shadowTexture RT
             using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
             {
+                TextureHandle targetTextureHandle = renderGraph.ImportTexture(this.targetRTHandle);
+                //TextureHandle targetTextureHandle = shadowTextureHandle;
+
                 // Sorting criteria (default transparent)
                 SortingCriteria sortingCriteria = cameraData.defaultOpaqueSortFlags;
 
@@ -120,7 +160,7 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
                 builder.UseRendererList(passData.rendererListHandle);
 
                 // Set render target (custom render target)
-                builder.SetRenderAttachment(shadowTextureHandle, 0, AccessFlags.Write);
+                builder.SetRenderAttachment(targetTextureHandle, 0, AccessFlags.Write);
 
                 // Disable pass culling
                 // Passes are culled if no other passes access the write target
@@ -128,7 +168,7 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
                 // we need to disable pass culling to ensure this pass will always run
                 builder.AllowPassCulling(false);
 
-                builder.SetGlobalTextureAfterPass(shadowTextureHandle, Shader.PropertyToID("_ShadowTexture"));
+                builder.SetGlobalTextureAfterPass(targetTextureHandle, Shader.PropertyToID("_ShadowTexture"));
 
                 // Set render function
                 builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
@@ -145,67 +185,66 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
             // 色情報とシャドウマップを組み合わせたテクスチャーを作成
             // ------------------------------------------------------------
 
-            // // シャドウテクスチャー
+            // シャドウテクスチャー
             // TextureHandle shadowColorTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_ShadowColorTexture", true, FilterMode.Point);
 
-            // // camera color RT -> shadowColorTexture RT
-            // using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
-            // {
-            //     // TextureHandle targetTextureHandle2 = renderGraph.ImportTexture(this.targetRTHandle2);
-            //     TextureHandle targetTextureHandle2 = shadowColorTextureHandle;
+            // camera color RT -> shadowColorTexture RT
+            using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
+            {
+                TextureHandle targetTextureHandle2 = renderGraph.ImportTexture(this.targetRTHandle2);
+                // TextureHandle targetTextureHandle2 = shadowColorTextureHandle;
 
-            //     // Sorting criteria (default transparent)
-            //     SortingCriteria sortingCriteria = cameraData.defaultOpaqueSortFlags;
+                // Sorting criteria (default transparent)
+                SortingCriteria sortingCriteria = cameraData.defaultOpaqueSortFlags;
 
-            //     // Drawing settings
-            //     DrawingSettings drawingSettings = RenderingUtils.CreateDrawingSettings(this.shaderTagIds2, renderingData, cameraData, lightData, sortingCriteria);
+                // Drawing settings
+                DrawingSettings drawingSettings = RenderingUtils.CreateDrawingSettings(this.shaderTagIds2, renderingData, cameraData, lightData, sortingCriteria);
 
-            //     // RendererListHandle
-            //     var filteringSettings = new FilteringSettings(RenderQueueRange.opaque);
-            //     RendererListParams rendererListParams = new RendererListParams(renderingData.cullResults, drawingSettings, filteringSettings);
+                // RendererListHandle
+                var filteringSettings = new FilteringSettings(RenderQueueRange.opaque);
+                RendererListParams rendererListParams = new RendererListParams(renderingData.cullResults, drawingSettings, filteringSettings);
 
-            //     passData.rendererListHandle = renderGraph.CreateRendererList(rendererListParams);
+                passData.rendererListHandle = renderGraph.CreateRendererList(rendererListParams);
 
-            //     // Set pass to use rendererListHandle
-            //     builder.UseRendererList(passData.rendererListHandle);
+                // Set pass to use rendererListHandle
+                builder.UseRendererList(passData.rendererListHandle);
 
-            //     // Set render target (custom render target)
-            //     builder.SetRenderAttachment(targetTextureHandle2, 0, AccessFlags.Write);
+                // Set render target (custom render target)
+                builder.SetRenderAttachment(targetTextureHandle2, 0, AccessFlags.Write);
 
-            //     // Disable pass culling
-            //     // Passes are culled if no other passes access the write target
-            //     // For example, if only a shader accesses the render target texture (and not a separate pass),
-            //     // we need to disable pass culling to ensure this pass will always run
-            //     builder.AllowPassCulling(false);
+                // Disable pass culling
+                // Passes are culled if no other passes access the write target
+                // For example, if only a shader accesses the render target texture (and not a separate pass),
+                // we need to disable pass culling to ensure this pass will always run
+                builder.AllowPassCulling(false);
 
-            //     // Set render function
-            //     builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
-            //     {
-            //         RasterCommandBuffer cmd = graphContext.cmd;
-            //         cmd.ClearRenderTarget(true, true, Color.clear);
-            //         // Draw renderer list
-            //         cmd.DrawRendererList(passData.rendererListHandle);
-            //     });
-            // }
+                // Set render function
+                builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
+                {
+                    RasterCommandBuffer cmd = graphContext.cmd;
+                    cmd.ClearRenderTarget(true, true, Color.clear);
+                    // Draw renderer list
+                    cmd.DrawRendererList(passData.rendererListHandle);
+                });
+            }
 
             // // 反映
-            // // shadowColorTexture RT -> camera color RT
+            // // bloom texture RT -> camera color RT
             // using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
             // {
             //     // Set tempRT for read
-            //     builder.UseTexture(shadowTextureHandle, AccessFlags.Read);
+            //     builder.UseTexture(shadowColorTextureHandle, AccessFlags.Read);
             //     // Set camera color RT for write
             //     builder.SetRenderAttachment(cameraColorTextureHandler, 0, AccessFlags.Write);
 
             //     // Resources/References for pass execution
             //     // Blit source texture
-            //     passData.sourceTextureHandle = shadowTextureHandle;
+            //     passData.sourceTextureHandle = shadowColorTextureHandle;
             //     passData.material = null;
 
             //     builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
             //     {
             //         RasterCommandBuffer cmd = graphContext.cmd;
-            //         cmd.ClearRenderTarget(true, true, Color.clear);
             //         Blitter.BlitTexture(cmd, passData.sourceTextureHandle, new Vector4(1, 1, 0, 0), 0, false);
             //     });
             // }
@@ -229,6 +268,8 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
 
         public void Dispose()
         {
+            targetRTHandle?.Release();
+            targetRTHandle2?.Release();
         }
     }
 }
