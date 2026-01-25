@@ -3,8 +3,8 @@
 // このファイルを使用する場合は Shader 内で以下を include してください:
 // #include "Assets/ShaderLibrary/Shadow/Depth/RecieverShadow.hlsl"
 
-#ifndef RECIEVER_SHADOW_INCLUDED_2
-#define RECIEVER_SHADOW_INCLUDED_2
+#ifndef RECIEVER_SHADOW_INCLUDED
+#define RECIEVER_SHADOW_INCLUDED
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 

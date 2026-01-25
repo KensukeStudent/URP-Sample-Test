@@ -4,8 +4,8 @@
 // このファイルを使用する場合は Shader 内で以下を include してください:
 // #include "Assets/ShaderLibrary/Shadow/Depth/DrawShadow.hlsl"
 
-#ifndef DRAW_SHADOW_INCLUDED
-#define DRAW_SHADOW_INCLUDED
+#ifndef DEPTH_DRAW_SHADOW_INCLUDED
+#define DEPTH_DRAW_SHADOW_INCLUDED
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
