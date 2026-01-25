@@ -21,13 +21,25 @@ public class VsmShadowRenderFeature : ScriptableRendererFeature
 
     private VsmShadowRenderPass depthShadow;
 
+    [SerializeField]
+    private Material gaussMaterial = null;
+
+    [Header("ガウス分布パラメータ")]
+    [SerializeField, Range(1, 10)]
+    private float dispersion = 5;
+
+    private GaussRenderer gaussRenderer;
+
     public override void Create()
     {
+        gaussRenderer = new GaussRenderer(gaussMaterial, dispersion);
+
         this.depthShadow = new VsmShadowRenderPass(
             this.settings.renderPassEvent,
             this.settings.material,
             this.settings.renderTexture,
-            this.settings.renderTexture2
+            this.settings.renderTexture2,
+            gaussRenderer
         );
     }
 
@@ -60,6 +72,8 @@ public class VsmShadowRenderFeature : ScriptableRendererFeature
 
         private Camera shadowCamera = null;
 
+        private GaussRenderer gaussRenderer;
+
         private class PassData
         {
             public RendererListHandle rendererListHandle;
@@ -68,12 +82,13 @@ public class VsmShadowRenderFeature : ScriptableRendererFeature
             public Material material;
         }
 
-        public VsmShadowRenderPass(RenderPassEvent renderPassEvent, Material material, RenderTexture renderTexture, RenderTexture renderTexture2)
+        public VsmShadowRenderPass(RenderPassEvent renderPassEvent, Material material, RenderTexture renderTexture, RenderTexture renderTexture2, GaussRenderer gaussRenderer)
         {
             this.renderPassEvent = renderPassEvent;
             this.material = material;
             this.targetRenderTexture = renderTexture;
             this.targetRenderTexture2 = renderTexture2;
+            this.gaussRenderer = gaussRenderer;
 
             shaderTagIds.Clear();
             shaderTagIds.Add(new ShaderTagId("ProjShadow"));
@@ -133,7 +148,7 @@ public class VsmShadowRenderFeature : ScriptableRendererFeature
             desc.msaaSamples = 1;
             desc.depthBufferBits = 0;
 
-            TextureHandle cameraColorTextureHandler = resourceData.activeColorTexture;
+            TextureHandle targetTextureHandle = renderGraph.ImportTexture(this.targetRTHandle);
 
             SetMaterial();
 
@@ -141,9 +156,6 @@ public class VsmShadowRenderFeature : ScriptableRendererFeature
             // TODO: プレビューで見たいのでRenderTextureで対応
             using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
             {
-                TextureHandle targetTextureHandle = renderGraph.ImportTexture(this.targetRTHandle);
-                //TextureHandle targetTextureHandle = shadowTextureHandle;
-
                 // Sorting criteria (default transparent)
                 SortingCriteria sortingCriteria = cameraData.defaultOpaqueSortFlags;
 
@@ -168,7 +180,8 @@ public class VsmShadowRenderFeature : ScriptableRendererFeature
                 // we need to disable pass culling to ensure this pass will always run
                 builder.AllowPassCulling(false);
 
-                builder.SetGlobalTextureAfterPass(targetTextureHandle, Shader.PropertyToID("_ShadowTexture"));
+                // ブラー側で取得するように
+                // builder.SetGlobalTextureAfterPass(targetTextureHandle, Shader.PropertyToID("_ShadowTexture"));
 
                 // Set render function
                 builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
@@ -179,6 +192,9 @@ public class VsmShadowRenderFeature : ScriptableRendererFeature
                     cmd.DrawRendererList(passData.rendererListHandle);
                 });
             }
+
+            // ブラー処理
+            gaussRenderer.RecordRenderGraph(renderGraph, cameraData.cameraTargetDescriptor, targetTextureHandle, Shader.PropertyToID("_ShadowTexture"));
 
             // ------------------------------------------------------------ 
             // camera / shadow Map texture -> shadow color texture
@@ -225,31 +241,11 @@ public class VsmShadowRenderFeature : ScriptableRendererFeature
                     cmd.DrawRendererList(passData.rendererListHandle);
                 });
             }
-
-            // // 反映 ここで見るとテクスチャー上のモデルとカメラから見たモデルが重複して見えてしまう
-            // // bloom texture RT -> camera color RT
-            // using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
-            // {
-            //     // Set tempRT for read
-            //     builder.UseTexture(shadowColorTextureHandle, AccessFlags.Read);
-            //     // Set camera color RT for write
-            //     builder.SetRenderAttachment(cameraColorTextureHandler, 0, AccessFlags.Write);
-
-            //     // Resources/References for pass execution
-            //     // Blit source texture
-            //     passData.sourceTextureHandle = shadowColorTextureHandle;
-            //     passData.material = null;
-
-            //     builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
-            //     {
-            //         RasterCommandBuffer cmd = graphContext.cmd;
-            //         Blitter.BlitTexture(cmd, passData.sourceTextureHandle, new Vector4(1, 1, 0, 0), 0, false);
-            //     });
-            // }
         }
 
         private void SetMaterial()
         {
+            // ライトビュープロジェクション行列
             shadowCamera = GameObject.FindWithTag("ShadowCamera").GetComponent<Camera>(); // TODO: 確認用としてここで定義
 
             var view = shadowCamera.worldToCameraMatrix;
@@ -262,6 +258,9 @@ public class VsmShadowRenderFeature : ScriptableRendererFeature
 
             Matrix4x4 lightVP = proj * view;
             Shader.SetGlobalMatrix("_lightVP", lightVP);
+
+            // ライト座標
+            Shader.SetGlobalVector("_lightPos", shadowCamera.transform.position);
         }
 
         public void Dispose()
