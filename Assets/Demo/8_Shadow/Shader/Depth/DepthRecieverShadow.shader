@@ -1,4 +1,4 @@
-Shader "Custom/RecieverShadow"
+Shader "Custom/DepthRecieverShadow"
 {
     Properties
     {
@@ -34,7 +34,7 @@ Shader "Custom/RecieverShadow"
 
             // 自作ライティング関数
             #include "Assets/ShaderLibrary/MyLitForwardPass.hlsl"
-            #include "Assets/ShaderLibrary/Shadow/RecieverShadow.hlsl"
+            #include "Assets/ShaderLibrary/Shadow/Depth/RecieverShadow.hlsl"
 
             half4 frag(Varyings IN) : SV_Target
             {
@@ -61,7 +61,7 @@ Shader "Custom/RecieverShadow"
             #pragma vertex vert
             #pragma fragment frag
 
-            #include "Assets/ShaderLibrary/Shadow/RecieverShadow.hlsl"
+            #include "Assets/ShaderLibrary/Shadow/Depth/RecieverShadow.hlsl"
 
             struct Attributes
             {

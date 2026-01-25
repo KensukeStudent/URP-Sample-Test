@@ -1,7 +1,7 @@
 // シャドウマップを参照して影を付ける
 
 // このファイルを使用する場合は Shader 内で以下を include してください:
-// #include "Assets/ShaderLibrary/Shadow/RecieverShadow.hlsl"
+// #include "Assets/ShaderLibrary/Shadow/Depth/RecieverShadow.hlsl"
 
 #ifndef RECIEVER_SHADOW_INCLUDED_2
 #define RECIEVER_SHADOW_INCLUDED_2

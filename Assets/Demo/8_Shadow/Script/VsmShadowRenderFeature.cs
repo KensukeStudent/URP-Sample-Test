@@ -6,7 +6,7 @@ using System.Collections.Generic;
 
 // TODO: 描画順はBeforeRenderingShadows
 
-public class ProjShadowRenderFeature : ScriptableRendererFeature
+public class VsmShadowRenderFeature : ScriptableRendererFeature
 {
     [System.Serializable]
     public class Settings
@@ -19,11 +19,11 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
 
     [SerializeField] private Settings settings = new Settings();
 
-    private ProjShadowRenderPass projShadow;
+    private VsmShadowRenderPass depthShadow;
 
     public override void Create()
     {
-        this.projShadow = new ProjShadowRenderPass(
+        this.depthShadow = new VsmShadowRenderPass(
             this.settings.renderPassEvent,
             this.settings.material,
             this.settings.renderTexture,
@@ -33,19 +33,19 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
 
     public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
     {
-        renderer.EnqueuePass(this.projShadow);
+        renderer.EnqueuePass(this.depthShadow);
     }
 
     protected override void Dispose(bool disposing)
     {
-        projShadow.Dispose();
+        depthShadow.Dispose();
     }
 
     // ------------------------------------------------
     // Render Pass Class 
     // ------------------------------------------------
 
-    public class ProjShadowRenderPass : ScriptableRenderPass
+    public class VsmShadowRenderPass : ScriptableRenderPass
     {
         private Material material;
 
@@ -68,7 +68,7 @@ public class ProjShadowRenderFeature : ScriptableRendererFeature
             public Material material;
         }
 
-        public ProjShadowRenderPass(RenderPassEvent renderPassEvent, Material material, RenderTexture renderTexture, RenderTexture renderTexture2)
+        public VsmShadowRenderPass(RenderPassEvent renderPassEvent, Material material, RenderTexture renderTexture, RenderTexture renderTexture2)
         {
             this.renderPassEvent = renderPassEvent;
             this.material = material;

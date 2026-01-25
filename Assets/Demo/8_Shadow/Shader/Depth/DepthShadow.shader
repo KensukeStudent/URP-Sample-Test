@@ -1,4 +1,4 @@
-Shader "Custom/ProjShadowShader"
+Shader "Custom/DepthShadowShader"
 {
     Properties
     {
@@ -47,7 +47,7 @@ Shader "Custom/ProjShadowShader"
 
             #pragma vertex vert
             #pragma fragment frag
-            #include "Assets/ShaderLibrary/Shadow/DrawShadow.hlsl"
+            #include "Assets/ShaderLibrary/Shadow/Depth/DrawShadow.hlsl"
 
             ENDHLSL
         }
