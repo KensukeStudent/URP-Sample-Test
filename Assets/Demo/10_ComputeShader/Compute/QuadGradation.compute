@@ -1,0 +1,18 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float> Result; // 256x256
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    // &: ビット演算 両方1なら1, どちらかが0なら0
+    // |: ビット演算 どちらかが1なら1, 両方0なら0
+    // Result[id.xy] = float(id.x | id.y) / 256.0f; // 0~1のグラデーション
+
+    // bool lineX = (id.x % 20) == 0;
+    // bool lineY = (id.y % 20) == 0;
+    // Result[id.xy] = (lineX || lineY) ? 0.0 : 1.0; // ＋字のグリッド線
+}
