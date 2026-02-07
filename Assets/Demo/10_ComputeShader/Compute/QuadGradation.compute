@@ -3,9 +3,10 @@
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
-RWTexture2D<float> Result; // 256x256
+RWTexture2D<float4> Result; // 256x256
 
 int LineWidth; // グリッド線の間隔
+float4 LineColor; // グリッド線の色
 
 [numthreads(8,8,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
@@ -16,5 +17,5 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 
     bool lineX = (id.x % LineWidth) == 0;
     bool lineY = (id.y % LineWidth) == 0;
-    Result[id.xy] = (lineX || lineY) ? 0.0 : 1.0; // ＋字のグリッド線
+    Result[id.xy] = (lineX || lineY) ? LineColor : 1.0; // ＋字のグリッド線
 }

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class QuadGradation : MonoBehaviour
+public class QuadGauss : MonoBehaviour
 {
     [SerializeField]
     private ComputeShader computeShader;
@@ -9,10 +9,7 @@ public class QuadGradation : MonoBehaviour
     private RenderTexture renderTexture; // 256x256 = 65536ピクセル
 
     [SerializeField]
-    private int lineWidth = 20;
-
-    [SerializeField]
-    private Color lineColor = Color.black;
+    private int clipWidth = 20;
 
     private void Start()
     {
@@ -25,8 +22,7 @@ public class QuadGradation : MonoBehaviour
 
     private void Update()
     {
-        computeShader.SetInt("LineWidth", lineWidth);
-        computeShader.SetVector("LineColor", lineColor);
+        computeShader.SetInt("clipWidth", clipWidth);
 
         var kernelIndex = computeShader.FindKernel("CSMain");
         computeShader.Dispatch(kernelIndex, renderTexture.width / 8, renderTexture.height / 8, 1);
