@@ -1,14 +1,71 @@
 // Each #kernel tells which function to compile; you can have many kernels
-#pragma kernel CSMain
+#pragma kernel XBlur
+#pragma kernel YBlur
+#pragma kernel XYBlur
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
-RWTexture2D<float> Result; // 256x256
+RWTexture2D<float4> Source; // 512x512
+RWTexture2D<float4> Result; // 512x512
 
-int clipWidth;
+StructuredBuffer<float> Weights; // 8
 
 [numthreads(8,8,1)]
-void CSMain (uint3 id : SV_DispatchThreadID)
+void XBlur (uint3 id : SV_DispatchThreadID)
 {
-    Result[id.xy] = id.x > clipWidth ? 1.0 : 0.0;
+    float4 sum = Source[id.xy] * Weights[0];
+
+    for (int index = 1; index < 8; index++) {
+        uint x0 = id.x + index;
+        uint x1 = id.x - index;
+        x0 = clamp(x0, 0, 511);
+        x1 = clamp(x1, 0, 511);
+
+        sum += Source[uint2(x0, id.y)] * Weights[index];
+        sum += Source[uint2(x1, id.y)] * Weights[index];
+    }
+    Result[id.xy] = sum;
+}
+
+[numthreads(8,8,1)]
+void YBlur (uint3 id : SV_DispatchThreadID)
+{
+    float4 sum = Source[id.xy] * Weights[0];
+    for (int index = 1; index < 8; index++) {
+        uint y0 = id.y + index;
+        uint y1 = id.y - index;
+        y0 = clamp(y0, 0, 511);
+        y1 = clamp(y1, 0, 511);
+
+        sum += Source[uint2(id.x, y0)] * Weights[index];
+        sum += Source[uint2(id.x, y1)] * Weights[index];
+    }
+    Result[id.xy] = sum;
+}
+
+[numthreads(8,8,1)]
+void XYBlur (uint3 id : SV_DispatchThreadID)
+{
+    float4 sum = Source[id.xy] * Weights[0];
+
+    for (int index = 1; index < 8; index++) {
+        uint x0 = id.x + index;
+        uint x1 = id.x - index;
+        x0 = clamp(x0, 0, 511);
+        x1 = clamp(x1, 0, 511);
+
+        sum += Source[uint2(x0, id.y)] * Weights[index];
+        sum += Source[uint2(x1, id.y)] * Weights[index];
+    }
+
+    for (int index = 1; index < 8; index++) {
+        uint y0 = id.y + index;
+        uint y1 = id.y - index;
+        y0 = clamp(y0, 0, 511);
+        y1 = clamp(y1, 0, 511);
+
+        sum += Source[uint2(id.x, y0)] * Weights[index];
+        sum += Source[uint2(id.x, y1)] * Weights[index];
+    }
+    Result[id.xy] = sum;
 }
