@@ -1,5 +1,10 @@
 Shader "CubeMapReflectProbe"
 {
+    Properties
+    {
+        [MaterialToggle] _BoxProjection("Box Projection", float) = 0
+    }
+
     SubShader
     {
         Tags { "RenderType"="Opaque" }
@@ -9,11 +14,10 @@ Shader "CubeMapReflectProbe"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+
+            float _BoxProjection;
                 
             #include "UnityCG.cginc"
-
-            float3 _ProbePos;
-
             struct appdata
             {
                 float4 vertex : POSITION;
@@ -72,7 +76,7 @@ Shader "CubeMapReflectProbe"
             {
                 half3 worldViewDir = normalize(_WorldSpaceCameraPos - i.worldPos);
                 half3 reflDir = reflect(-worldViewDir, i.worldNormal);
-                reflDir = boxProjection(i.worldPos, reflDir);
+                reflDir = _BoxProjection == 1 ? boxProjection(i.worldPos, reflDir) : reflDir;
                 
                 // unity_SpecCube0はUnityで定義されているキューブマップ
                 half4 refColor = UNITY_SAMPLE_TEXCUBE_LOD(unity_SpecCube0, reflDir, 0);
