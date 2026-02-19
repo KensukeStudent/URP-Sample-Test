@@ -72,8 +72,6 @@ public class DepthToWorldFeature : ScriptableRendererFeature
             TextureHandle cameraColorTextureHandler = resourceData.activeColorTexture;
             TextureHandle cameraDepthTextureHandle = resourceData.activeDepthTexture;
 
-            var gBufferTextureHandler = resourceData.gBuffer[gBufferIndex];
-
             // テクスチャー情報
             RenderTextureDescriptor desc = cameraData.cameraTargetDescriptor;
             desc.colorFormat = RenderTextureFormat.ARGB32; // Enable alpha
@@ -91,16 +89,13 @@ public class DepthToWorldFeature : ScriptableRendererFeature
             using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
             {
                 // Set tempRT for read
-                builder.UseTexture(gBufferTextureHandler, AccessFlags.Read);
+                builder.UseTexture(cameraColorTextureHandler, AccessFlags.Read);
                 // Set camera color RT for write
                 builder.SetRenderAttachment(textureHandle, 0, AccessFlags.Write);
 
-                // builder.AllowGlobalStateModification(true);
-                // builder.SetGlobalTextureAfterPass(gBufferTextureHandler, Shader.PropertyToID("_GBuffer2"));
-
                 // Resources/References for pass execution
                 // Blit source texture
-                passData.sourceTextureHandle = gBufferTextureHandler;
+                passData.sourceTextureHandle = cameraColorTextureHandler;
                 passData.material = material;
 
                 builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
