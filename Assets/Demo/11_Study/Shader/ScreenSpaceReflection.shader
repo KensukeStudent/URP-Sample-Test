@@ -102,15 +102,14 @@ Shader "Custom/ScreenSpaceReflection"
 
                         // レイ空間の仮想深度
                         float deviceDepth = rayHCS.z / rayHCS.w;
-                        float rayDepth01 = Linear01Depth(deviceDepth, _ZBufferParams);
+                        float rayDepth = Linear01Depth(deviceDepth, _ZBufferParams); // 手前0,奥1
 
                         // 実際に表示されている画面からレイの深度を取得
                         float rawDepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_PointClamp, rayUV);
-                        float gbufferDepth = Linear01Depth(rawDepth, _ZBufferParams);
+                        float depth = Linear01Depth(rawDepth, _ZBufferParams); // 手前0,奥1
 
-                        // 厚み付き判定
-                        if (rayDepth01 > gbufferDepth &&
-                            rayDepth01 - gbufferDepth < thickness)
+                        // 厚み付き判定 rayDepthの方が手前ならめり込んでいる
+                        if (rayDepth > depth /*&& rayDepth - depth < thickness*/)
                         {
                             col += SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_PointClamp, rayUV, 0) * 0.2;
                             break;
@@ -118,14 +117,21 @@ Shader "Custom/ScreenSpaceReflection"
                     }
                 }
 
-                // float4 cs = TransformWorldToHClip(worldPos);
-                // float2 uv = cs.xy / cs.w * 0.5 + 0.5;
-                // #if UNITY_UV_STARTS_AT_TOP // 上下逆問題を修正
-                // uv.y = 1.0 - uv.y;
-                // #endif
-                // float d = cs.z / cs.w; // 深度値のそのままの絵(オブジェクト以外の空間の深度もある)
-                // float gbufferDepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_PointClamp, uv);
-                // return half4(gbufferDepth,0,0,1);
+                // // 検証用
+                // {
+                //     float4 cs = TransformWorldToHClip(worldPos);
+                //     float2 uv = cs.xy / cs.w * 0.5 + 0.5;
+                //     #if UNITY_UV_STARTS_AT_TOP // 上下逆問題を修正
+                //     uv.y = 1.0 - uv.y;
+                //     #endif
+                //     float rayDepth = cs.z / cs.w; // 深度値のそのままの絵(オブジェクト以外の空間の深度もある)
+                //     rayDepth = Linear01Depth(rayDepth, _ZBufferParams); // 手前0,奥1
+
+                //     float depth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_PointClamp, uv);
+                //     depth = Linear01Depth(depth, _ZBufferParams); // 手前0,奥1
+
+                //     return half4(rayDepth,0,0,1);
+                // }
 
                 return col;
             }
