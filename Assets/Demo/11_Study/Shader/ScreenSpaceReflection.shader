@@ -6,8 +6,7 @@ Shader "Custom/ScreenSpaceReflection"
 {
     Properties
     {
-        [MainColor] _BaseColor("Base Color", Color) = (1, 1, 1, 1)
-        [MainTexture] _BaseMap("Base Map", 2D) = "white"
+        _Thickness("Thickness", Range(0.0, 0.1)) = 0.0
     }
 
     SubShader
@@ -35,14 +34,17 @@ Shader "Custom/ScreenSpaceReflection"
             #define GBUFFER3 3 // depth
 
             FRAMEBUFFER_INPUT_X_HALF(GBUFFER2);
-            FRAMEBUFFER_INPUT_X_HALF(GBUFFER3);
+
+            CBUFFER_START(UnityPerMaterial)
+            float _Thickness; // 厚み
+            CBUFFER_END
 
             half4 frag(Varyings IN) : SV_Target
             {
-                // 深度からワールド座標への変換 
+                // 深度からワールド座標への変換
                 // https://docs.unity3d.com/ja/Packages/com.unity.render-pipelines.universal@14.0/manual/writing-shaders-urp-reconstruct-world-position.html
-                half4 depth = LOAD_FRAMEBUFFER_X_INPUT(GBUFFER3, IN.positionCS);
-                float3 worldPos = ComputeWorldSpacePosition(IN.texcoord, depth.r, UNITY_MATRIX_I_VP);
+                half depth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_PointClamp, IN.texcoord).r; //LOAD_FRAMEBUFFER_X_INPUT(GBUFFER3, IN.positionCS).r;
+                float3 worldPos = ComputeWorldSpacePosition(IN.texcoord, depth, UNITY_MATRIX_I_VP);
 
                 // 反射ベクトルを計算
                 float3 viewDir = normalize(worldPos - _WorldSpaceCameraPos);
@@ -52,7 +54,7 @@ Shader "Custom/ScreenSpaceReflection"
                 // world座標からHCSに変換して取れるかどうか LOAD_FRAMEBUFFER_X_INPUT inverseしているから上下逆転している？
                 // float4 HCS = TransformWorldToHClip(worldPos); // -w ~ w
                 // float3 UV = HCS.xyz / HCS.w * 0.5 + 0.5; // -1 ~ 1 -> 0 ~ 1
-                half4 col = SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_PointClamp, IN.texcoord, 0);
+                half4 col = FragNearest(IN);
 
                 // {
                 //     // ワールド空間上でレイを伸ばして深度と交差する部分を計算
@@ -83,7 +85,6 @@ Shader "Custom/ScreenSpaceReflection"
                 {
                     int maxRayNum = 10;
                     float3 stepDir = reflectDir * (2.0 / maxRayNum);
-                    float thickness = 0.3 / maxRayNum;
 
                     for (int n = 1; n <= maxRayNum; n++)
                     {
@@ -108,10 +109,13 @@ Shader "Custom/ScreenSpaceReflection"
                         float rawDepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_PointClamp, rayUV);
                         float depth = Linear01Depth(rawDepth, _ZBufferParams); // 手前0,奥1
 
-                        // 厚み付き判定 rayDepthの方が手前ならめり込んでいる
-                        if (rayDepth > depth /*&& rayDepth - depth < thickness*/)
+                        // めり込み判定・厚み付き 
+                        // rayDepthの方が手前ならめり込んでいる
+                        // rayDepth,depth: 0 ~ 1
+                        if (rayDepth > depth && rayDepth - depth < _Thickness)
                         {
-                            col += SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_PointClamp, rayUV, 0) * 0.2;
+                            IN.texcoord = rayUV;
+                            col += FragNearest(IN) * 0.2;
                             break;
                         }
                     }
