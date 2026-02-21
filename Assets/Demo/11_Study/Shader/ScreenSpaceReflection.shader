@@ -1,3 +1,7 @@
+// 深度からワールド座標への変換を行うシェーダー
+// フレームバッファフェッチ: https://docs.unity3d.com/ja/6000.0/Manual/urp/render-graph-framebuffer-fetch.html
+// GPU のオンチップメモリからフレームバッファにアクセスできます
+
 Shader "Custom/ScreenSpaceReflection"
 {
     Properties
@@ -14,43 +18,116 @@ Shader "Custom/ScreenSpaceReflection"
         {
             HLSLPROGRAM
 
-            #pragma vertex vert
+            #pragma vertex Vert
             #pragma fragment frag
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
+            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
-            struct Attributes
-            {
-                float4 positionOS : POSITION;
-                float2 uv : TEXCOORD0;
-            };
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
 
-            struct Varyings
-            {
-                float4 positionHCS : SV_POSITION;
-                float2 uv : TEXCOORD0;
-            };
+            // gBuffer
+            // https://docs.unity3d.com/jp/current/Manual/urp/rendering/g-buffer-layout.html
+            #define GBUFFER0 0 // albedo
+            #define GBUFFER1 1 // specular
+            #define GBUFFER2 2 // normal
+            #define GBUFFER3 3 // depth
 
-            TEXTURE2D(_BaseMap);
-            SAMPLER(sampler_BaseMap);
-
-            CBUFFER_START(UnityPerMaterial)
-                half4 _BaseColor;
-                float4 _BaseMap_ST;
-            CBUFFER_END
-
-            Varyings vert(Attributes IN)
-            {
-                Varyings OUT;
-                OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
-                OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap);
-                return OUT;
-            }
+            FRAMEBUFFER_INPUT_X_HALF(GBUFFER2);
+            FRAMEBUFFER_INPUT_X_HALF(GBUFFER3);
 
             half4 frag(Varyings IN) : SV_Target
             {
-                half4 color = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv) * _BaseColor;
-                return color;
+                // 深度からワールド座標への変換 
+                // https://docs.unity3d.com/ja/Packages/com.unity.render-pipelines.universal@14.0/manual/writing-shaders-urp-reconstruct-world-position.html
+                half4 depth = LOAD_FRAMEBUFFER_X_INPUT(GBUFFER3, IN.positionCS);
+                float3 worldPos = ComputeWorldSpacePosition(IN.texcoord, depth.r, UNITY_MATRIX_I_VP);
+
+                // 反射ベクトルを計算
+                float3 viewDir = normalize(worldPos - _WorldSpaceCameraPos);
+                float3 normal = LOAD_FRAMEBUFFER_X_INPUT(GBUFFER2, IN.positionCS); // GBuffer Normal[-1~1]
+                float3 reflectDir = reflect(viewDir, normal);
+
+                // world座標からHCSに変換して取れるかどうか LOAD_FRAMEBUFFER_X_INPUT inverseしているから上下逆転している？
+                // float4 HCS = TransformWorldToHClip(worldPos); // -w ~ w
+                // float3 UV = HCS.xyz / HCS.w * 0.5 + 0.5; // -1 ~ 1 -> 0 ~ 1
+                half4 col = SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_PointClamp, IN.texcoord, 0);
+
+                // {
+                //     // ワールド空間上でレイを伸ばして深度と交差する部分を計算
+                //     int iterations = 10;
+                //     float3 Q0 = worldPos; // 始点
+                //     float3 Q1 = worldPos + reflectDir * iterations; // 終点
+                //     float3 delta = Q1 - Q0; // 始点と終点の長さ(x,y,z)
+                //     float3 deltaStep = delta / iterations; // 1ステップごとの移動量
+                //     float thickness = 0.2 / iterations; // ?
+
+                //     float3 Q = Q0;
+                //     float2 P;
+                //     for (int i = 0; i < iterations; i++) {
+                //         Q += deltaStep;
+                //         float4 clip = TransformWorldToHClip(Q);
+                //         half4 depth = LOAD_FRAMEBUFFER_X_INPUT(GBUFFER2, clip); // 深度バッファの値
+                //         float dist = Q.z - depth.r; // レイの深度値と深度バッファ値の差分
+
+                //         if (dist < 0.0) {
+                //             float4 rayHCS = TransformWorldToHClip(Q); // -w ~ w
+                //             float2 rayUV = rayHCS.xy / rayHCS.w * 0.5 + 0.5; // -1 ~ 1 -> 0 ~ 1
+                //             col += SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_PointClamp, rayUV, 0) * 0.1;
+                //             break;
+                //         }
+                //     }
+                // }
+
+                {
+                    int maxRayNum = 10;
+                    float3 stepDir = reflectDir * (2.0 / maxRayNum);
+                    float thickness = 0.3 / maxRayNum;
+
+                    for (int n = 1; n <= maxRayNum; n++)
+                    {
+                        float3 rayWS = worldPos + stepDir * n;
+                        float4 rayHCS = TransformWorldToHClip(rayWS);
+
+                        float2 rayUV = rayHCS.xy / rayHCS.w * 0.5 + 0.5;
+                        #if UNITY_UV_STARTS_AT_TOP // 上下逆問題を修正
+                        rayUV.y = 1 - rayUV.y;
+                        #endif
+
+                        // 画面外チェック
+                        if (rayUV.x < 0 || rayUV.x > 1 ||
+                            rayUV.y < 0 || rayUV.y > 1)
+                            break;
+
+                        // レイ空間の仮想深度
+                        float deviceDepth = rayHCS.z / rayHCS.w;
+                        float rayDepth01 = Linear01Depth(deviceDepth, _ZBufferParams);
+
+                        // 実際に表示されている画面からレイの深度を取得
+                        float rawDepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_PointClamp, rayUV);
+                        float gbufferDepth = Linear01Depth(rawDepth, _ZBufferParams);
+
+                        // 厚み付き判定
+                        if (rayDepth01 > gbufferDepth &&
+                            rayDepth01 - gbufferDepth < thickness)
+                        {
+                            col += SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_PointClamp, rayUV, 0) * 0.2;
+                            break;
+                        }
+                    }
+                }
+
+                // float4 cs = TransformWorldToHClip(worldPos);
+                // float2 uv = cs.xy / cs.w * 0.5 + 0.5;
+                // #if UNITY_UV_STARTS_AT_TOP // 上下逆問題を修正
+                // uv.y = 1.0 - uv.y;
+                // #endif
+                // float d = cs.z / cs.w; // 深度値のそのままの絵(オブジェクト以外の空間の深度もある)
+                // float gbufferDepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_PointClamp, uv);
+                // return half4(gbufferDepth,0,0,1);
+
+                return col;
             }
             ENDHLSL
         }

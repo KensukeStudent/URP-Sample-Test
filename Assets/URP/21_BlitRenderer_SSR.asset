@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: de640fe3d0db1804a85f9fc8f5cadab6, type: 3}
-  m_Name: 20_BlitRenderer_Depth_To_World
+  m_Name: 21_BlitRenderer_SSR
   m_EditorClassIdentifier: 
   debugShaders:
     debugReplacementPS: {fileID: 4800000, guid: cf852408f2e174538bcd9b7fda1c5ae7, type: 3}
@@ -69,5 +69,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UTJSample.BlitRendererFeature
   m_Active: 1
   settings:
-    renderPassEvent: 500
-    material: {fileID: 2100000, guid: 1f02a3b71e842c649b077701cabea737, type: 2}
+    renderPassEvent: 550
+    material: {fileID: 2100000, guid: 17ca04b5afc0ddf449dddc5e36040a09, type: 2}
