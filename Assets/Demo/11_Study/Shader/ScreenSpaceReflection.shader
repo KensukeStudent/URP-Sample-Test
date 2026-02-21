@@ -51,73 +51,43 @@ Shader "Custom/ScreenSpaceReflection"
                 float3 normal = LOAD_FRAMEBUFFER_X_INPUT(GBUFFER2, IN.positionCS); // GBuffer Normal[-1~1]
                 float3 reflectDir = reflect(viewDir, normal);
 
-                // world座標からHCSに変換して取れるかどうか LOAD_FRAMEBUFFER_X_INPUT inverseしているから上下逆転している？
-                // float4 HCS = TransformWorldToHClip(worldPos); // -w ~ w
-                // float3 UV = HCS.xyz / HCS.w * 0.5 + 0.5; // -1 ~ 1 -> 0 ~ 1
+                // カラー
                 half4 col = FragNearest(IN);
 
-                // {
-                //     // ワールド空間上でレイを伸ばして深度と交差する部分を計算
-                //     int iterations = 10;
-                //     float3 Q0 = worldPos; // 始点
-                //     float3 Q1 = worldPos + reflectDir * iterations; // 終点
-                //     float3 delta = Q1 - Q0; // 始点と終点の長さ(x,y,z)
-                //     float3 deltaStep = delta / iterations; // 1ステップごとの移動量
-                //     float thickness = 0.2 / iterations; // ?
+                int stepCount = 10; // TODO: step数が多いと読み込みが長く重くなりやすい感じ
+                float3 stepDir = reflectDir * (2.0 / stepCount);
 
-                //     float3 Q = Q0;
-                //     float2 P;
-                //     for (int i = 0; i < iterations; i++) {
-                //         Q += deltaStep;
-                //         float4 clip = TransformWorldToHClip(Q);
-                //         half4 depth = LOAD_FRAMEBUFFER_X_INPUT(GBUFFER2, clip); // 深度バッファの値
-                //         float dist = Q.z - depth.r; // レイの深度値と深度バッファ値の差分
-
-                //         if (dist < 0.0) {
-                //             float4 rayHCS = TransformWorldToHClip(Q); // -w ~ w
-                //             float2 rayUV = rayHCS.xy / rayHCS.w * 0.5 + 0.5; // -1 ~ 1 -> 0 ~ 1
-                //             col += SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_PointClamp, rayUV, 0) * 0.1;
-                //             break;
-                //         }
-                //     }
-                // }
-
+                for (int n = 1; n <= stepCount; n++)
                 {
-                    int maxRayNum = 10;
-                    float3 stepDir = reflectDir * (2.0 / maxRayNum);
+                    float3 rayWS = worldPos + stepDir * n;
+                    float4 rayHCS = TransformWorldToHClip(rayWS);
 
-                    for (int n = 1; n <= maxRayNum; n++)
+                    float2 rayUV = rayHCS.xy / rayHCS.w * 0.5 + 0.5;
+                    #if UNITY_UV_STARTS_AT_TOP // 上下逆問題を修正
+                    rayUV.y = 1 - rayUV.y;
+                    #endif
+
+                    // 画面外チェック
+                    if (rayUV.x < 0 || rayUV.x > 1 ||
+                        rayUV.y < 0 || rayUV.y > 1)
+                        break;
+
+                    // レイ空間の仮想深度
+                    float deviceDepth = rayHCS.z / rayHCS.w;
+                    float rayDepth = Linear01Depth(deviceDepth, _ZBufferParams); // 手前0,奥1
+
+                    // 実際に表示されている画面からレイの深度を取得
+                    float rawDepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_PointClamp, rayUV);
+                    float depth = Linear01Depth(rawDepth, _ZBufferParams); // 手前0,奥1
+
+                    // めり込み判定・厚み付き 
+                    // rayDepthの方が手前ならめり込んでいる
+                    // rayDepth,depth: 0 ~ 1
+                    if (rayDepth > depth && rayDepth - depth < _Thickness)
                     {
-                        float3 rayWS = worldPos + stepDir * n;
-                        float4 rayHCS = TransformWorldToHClip(rayWS);
-
-                        float2 rayUV = rayHCS.xy / rayHCS.w * 0.5 + 0.5;
-                        #if UNITY_UV_STARTS_AT_TOP // 上下逆問題を修正
-                        rayUV.y = 1 - rayUV.y;
-                        #endif
-
-                        // 画面外チェック
-                        if (rayUV.x < 0 || rayUV.x > 1 ||
-                            rayUV.y < 0 || rayUV.y > 1)
-                            break;
-
-                        // レイ空間の仮想深度
-                        float deviceDepth = rayHCS.z / rayHCS.w;
-                        float rayDepth = Linear01Depth(deviceDepth, _ZBufferParams); // 手前0,奥1
-
-                        // 実際に表示されている画面からレイの深度を取得
-                        float rawDepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_PointClamp, rayUV);
-                        float depth = Linear01Depth(rawDepth, _ZBufferParams); // 手前0,奥1
-
-                        // めり込み判定・厚み付き 
-                        // rayDepthの方が手前ならめり込んでいる
-                        // rayDepth,depth: 0 ~ 1
-                        if (rayDepth > depth && rayDepth - depth < _Thickness)
-                        {
-                            IN.texcoord = rayUV;
-                            col += FragNearest(IN) * 0.2;
-                            break;
-                        }
+                        IN.texcoord = rayUV;
+                        col += FragNearest(IN) * 0.2;
+                        break;
                     }
                 }
 
