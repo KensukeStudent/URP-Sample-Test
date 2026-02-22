@@ -39,21 +39,15 @@ Shader "Custom/ScreenSpaceReflection"
             float _Thickness; // 厚み
             CBUFFER_END
 
-            half4 frag(Varyings IN) : SV_Target
+            /// <summary>
+            /// Screen Space Reflectionのレイマーチング処理
+            /// </summary>
+            /// <param name="IN"></param>
+            /// <param name="worldPos"></param>
+            /// <param name="reflectDir"></param>
+            /// <returns></returns>
+            half4 ssrRayTrace(Varyings IN, float3 worldPos, float3 reflectDir)
             {
-                // 深度からワールド座標への変換
-                // https://docs.unity3d.com/ja/Packages/com.unity.render-pipelines.universal@14.0/manual/writing-shaders-urp-reconstruct-world-position.html
-                half depth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_PointClamp, IN.texcoord).r; //LOAD_FRAMEBUFFER_X_INPUT(GBUFFER3, IN.positionCS).r;
-                float3 worldPos = ComputeWorldSpacePosition(IN.texcoord, depth, UNITY_MATRIX_I_VP);
-
-                // 反射ベクトルを計算
-                float3 viewDir = normalize(worldPos - _WorldSpaceCameraPos);
-                float3 normal = LOAD_FRAMEBUFFER_X_INPUT(GBUFFER2, IN.positionCS); // GBuffer Normal[-1~1]
-                float3 reflectDir = reflect(viewDir, normal);
-
-                // カラー
-                half4 col = FragNearest(IN);
-
                 int stepCount = 10; // TODO: step数が多いと読み込みが長く重くなりやすい感じ
                 float3 stepDir = reflectDir * (2.0 / stepCount);
 
@@ -86,10 +80,28 @@ Shader "Custom/ScreenSpaceReflection"
                     if (rayDepth > depth && rayDepth - depth < _Thickness)
                     {
                         IN.texcoord = rayUV;
-                        col += FragNearest(IN) * 0.2;
-                        break;
+                        return FragNearest(IN) * 0.2;
                     }
                 }
+
+                return half4(0, 0, 0, 0);
+            }
+
+            half4 frag(Varyings IN) : SV_Target
+            {
+                // 深度からワールド座標への変換
+                // https://docs.unity3d.com/ja/Packages/com.unity.render-pipelines.universal@14.0/manual/writing-shaders-urp-reconstruct-world-position.html
+                half depth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_PointClamp, IN.texcoord).r; //LOAD_FRAMEBUFFER_X_INPUT(GBUFFER3, IN.positionCS).r;
+                float3 worldPos = ComputeWorldSpacePosition(IN.texcoord, depth, UNITY_MATRIX_I_VP);
+
+                // 反射ベクトルを計算
+                float3 viewDir = normalize(worldPos - _WorldSpaceCameraPos);
+                float3 normal = LOAD_FRAMEBUFFER_X_INPUT(GBUFFER2, IN.positionCS); // GBuffer Normal[-1~1]
+                float3 reflectDir = reflect(viewDir, normal);
+
+                // カラー
+                half4 color = FragNearest(IN);
+                half4 ssrTraceColor = ssrRayTrace(IN, worldPos, reflectDir);
 
                 // // 検証用
                 // {
@@ -107,7 +119,7 @@ Shader "Custom/ScreenSpaceReflection"
                 //     return half4(rayDepth,0,0,1);
                 // }
 
-                return col;
+                return color + ssrTraceColor;
             }
             ENDHLSL
         }
