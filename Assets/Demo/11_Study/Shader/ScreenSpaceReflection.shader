@@ -42,14 +42,14 @@ Shader "Custom/ScreenSpaceReflection"
             /// <summary>
             /// Screen Space Reflectionのレイマーチング処理
             /// </summary>
-            /// <param name="IN"></param>
-            /// <param name="worldPos"></param>
-            /// <param name="reflectDir"></param>
-            /// <returns></returns>
-            half4 ssrRayTrace(Varyings IN, float3 worldPos, float3 reflectDir)
+            bool isSsrRayTrace(
+                float3 worldPos, 
+                float3 reflectDir,
+                out float2 hitUV)
             {
                 int stepCount = 10; // TODO: step数が多いと読み込みが長く重くなりやすい感じ
                 float3 stepDir = reflectDir * (2.0 / stepCount);
+                bool isHit = false;
 
                 for (int n = 1; n <= stepCount; n++)
                 {
@@ -77,14 +77,15 @@ Shader "Custom/ScreenSpaceReflection"
                     // めり込み判定・厚み付き 
                     // rayDepthの方が手前ならめり込んでいる
                     // rayDepth,depth: 0 ~ 1
-                    if (rayDepth > depth && rayDepth - depth < _Thickness)
+                    isHit = rayDepth > depth && rayDepth - depth < _Thickness;;
+                    if (isHit)
                     {
-                        IN.texcoord = rayUV;
-                        return FragNearest(IN) * 0.2;
+                        hitUV = rayUV;
+                        break;
                     }
                 }
 
-                return half4(0, 0, 0, 0);
+                return isHit;
             }
 
             half4 frag(Varyings IN) : SV_Target
@@ -101,27 +102,35 @@ Shader "Custom/ScreenSpaceReflection"
 
                 // カラー
                 half4 color = FragNearest(IN);
-                half4 ssrTraceColor = ssrRayTrace(IN, worldPos, reflectDir);
 
-                // // 検証用
-                // {
-                //     float4 cs = TransformWorldToHClip(worldPos);
-                //     float2 uv = cs.xy / cs.w * 0.5 + 0.5;
-                //     #if UNITY_UV_STARTS_AT_TOP // 上下逆問題を修正
-                //     uv.y = 1.0 - uv.y;
-                //     #endif
-                //     float rayDepth = cs.z / cs.w; // 深度値のそのままの絵(オブジェクト以外の空間の深度もある)
-                //     rayDepth = Linear01Depth(rayDepth, _ZBufferParams); // 手前0,奥1
+                // レイマーチング
+                float2 hitUV;
+                bool isHit = isSsrRayTrace(worldPos, reflectDir, hitUV);
+                if (isHit)
+                {
+                    IN.texcoord = hitUV;
+                    color += FragNearest(IN) * 0.2;
+                }
 
-                //     float depth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_PointClamp, uv);
-                //     depth = Linear01Depth(depth, _ZBufferParams); // 手前0,奥1
-
-                //     return half4(rayDepth,0,0,1);
-                // }
-
-                return color + ssrTraceColor;
+                return color;
             }
             ENDHLSL
         }
     }
 }
+
+// // 検証用
+// {
+//     float4 cs = TransformWorldToHClip(worldPos);
+//     float2 uv = cs.xy / cs.w * 0.5 + 0.5;
+//     #if UNITY_UV_STARTS_AT_TOP // 上下逆問題を修正
+//     uv.y = 1.0 - uv.y;
+//     #endif
+//     float rayDepth = cs.z / cs.w; // 深度値のそのままの絵(オブジェクト以外の空間の深度もある)
+//     rayDepth = Linear01Depth(rayDepth, _ZBufferParams); // 手前0,奥1
+
+//     float depth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_PointClamp, uv);
+//     depth = Linear01Depth(depth, _ZBufferParams); // 手前0,奥1
+
+//     return half4(rayDepth,0,0,1);
+// }
