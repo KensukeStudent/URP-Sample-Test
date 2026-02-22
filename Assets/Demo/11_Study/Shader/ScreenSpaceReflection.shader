@@ -6,7 +6,10 @@ Shader "Custom/ScreenSpaceReflection"
 {
     Properties
     {
-        _Thickness("Thickness", Range(0.0, 0.1)) = 0.0
+        _MaxRayDistance("Max Ray Distance", Range(1, 100)) = 10.0 // レイの最大距離
+        _StepCount("Step Count", Range(1, 100)) = 10 // step数が多いと読み込みが長く重くなりやすい感じ
+        _Thickness("Thickness", Range(0.0, 0.1)) = 0.0 // 厚み
+        _BinarySearchIterations("Binary Search Iterations", Range(0, 32)) = 5 // 二分探索の反復回数
     }
 
     SubShader
@@ -36,7 +39,10 @@ Shader "Custom/ScreenSpaceReflection"
             FRAMEBUFFER_INPUT_X_HALF(GBUFFER2);
 
             CBUFFER_START(UnityPerMaterial)
+            int _MaxRayDistance; // レイの最大距離
+            int _StepCount; // レイマーチングのステップ数
             float _Thickness; // 厚み
+            int _BinarySearchIterations; // 二分探索の反復回数
             CBUFFER_END
 
             /// <summary>
@@ -45,16 +51,28 @@ Shader "Custom/ScreenSpaceReflection"
             bool isSsrRayTrace(
                 float3 worldPos, 
                 float3 reflectDir,
+                float dotNV, // 法線と視線の内積
                 out float2 hitUV)
             {
-                int stepCount = 10; // TODO: step数が多いと読み込みが長く重くなりやすい感じ
-                float3 stepDir = reflectDir * (2.0 / stepCount);
+                // 正面に近いほど反射の影響を受けにくくする (SSRの都合上、カメラにオブジェクトが近いと大きく映る現象の回避)
+                // 0.6未満は減衰無し
+                float rayDistance = _MaxRayDistance * (1.0 - saturate(dotNV) * step(0.6, dotNV));
+                // レイの最大長さ TODO: カメラ範囲内からレイがはみ出すのを防ぐ必要有
+                // float rayLength = worldPos.z + reflectDir.z * rayDistance;
+
+                float3 startWS = worldPos;
+                float3 endWS = worldPos + reflectDir * rayDistance; // 適当な距離
+                float3 deltaStep = (endWS - startWS) / _StepCount; // 1stepあたりの移動量
                 bool isHit = false;
 
-                for (int n = 1; n <= stepCount; n++)
+                float3 startRayWS = startWS; // レイ開始位置
+
+                // レイマーチング
+                [loop]
+                for (int n = 1; n <= _StepCount; n++)
                 {
-                    float3 rayWS = worldPos + stepDir * n;
-                    float4 rayHCS = TransformWorldToHClip(rayWS);
+                    startRayWS += deltaStep;
+                    float4 rayHCS = TransformWorldToHClip(startRayWS);
 
                     float2 rayUV = rayHCS.xy / rayHCS.w * 0.5 + 0.5;
                     #if UNITY_UV_STARTS_AT_TOP // 上下逆問題を修正
@@ -77,12 +95,18 @@ Shader "Custom/ScreenSpaceReflection"
                     // めり込み判定・厚み付き 
                     // rayDepthの方が手前ならめり込んでいる
                     // rayDepth,depth: 0 ~ 1
-                    isHit = rayDepth > depth && rayDepth - depth < _Thickness;;
+                    isHit = rayDepth > depth && rayDepth - depth < _Thickness;
                     if (isHit)
                     {
                         hitUV = rayUV;
                         break;
                     }
+                }
+
+                // 2分探索
+                if (_BinarySearchIterations > 0 && isHit)
+                {
+
                 }
 
                 return isHit;
@@ -104,8 +128,9 @@ Shader "Custom/ScreenSpaceReflection"
                 half4 color = FragNearest(IN);
 
                 // レイマーチング
+                float dotNV = dot(normal, viewDir);
                 float2 hitUV;
-                bool isHit = isSsrRayTrace(worldPos, reflectDir, hitUV);
+                bool isHit = isSsrRayTrace(worldPos, reflectDir, dotNV, hitUV);
                 if (isHit)
                 {
                     IN.texcoord = hitUV;
