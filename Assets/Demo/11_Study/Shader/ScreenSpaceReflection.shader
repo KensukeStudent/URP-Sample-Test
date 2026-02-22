@@ -46,6 +46,37 @@ Shader "Custom/ScreenSpaceReflection"
             CBUFFER_END
 
             /// <summary>
+            /// 入力したワールド座標が深度バッファにヒットしているか
+            /// </summary>
+            bool isRayHit(float3 startRayWS, out float2 rayUV)
+            {
+                float4 rayHCS = TransformWorldToHClip(startRayWS);
+
+                rayUV = rayHCS.xy / rayHCS.w * 0.5 + 0.5;
+                #if UNITY_UV_STARTS_AT_TOP // 上下逆問題を修正
+                rayUV.y = 1 - rayUV.y;
+                #endif
+
+                // 画面外チェック
+                if (rayUV.x < 0 || rayUV.x > 1 ||
+                    rayUV.y < 0 || rayUV.y > 1)
+                    return false;
+
+                // レイ空間の仮想深度
+                float deviceDepth = rayHCS.z / rayHCS.w;
+                float rayDepth = Linear01Depth(deviceDepth, _ZBufferParams); // 手前0,奥1
+
+                // 実際に表示されている画面からレイの深度を取得
+                float rawDepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_PointClamp, rayUV);
+                float depth = Linear01Depth(rawDepth, _ZBufferParams); // 手前0,奥1
+
+                // めり込み判定・厚み付き 
+                // rayDepthの方が手前ならめり込んでいる
+                // rayDepth,depth: 0 ~ 1
+                return rayDepth > depth && rayDepth - depth < _Thickness;
+            }
+
+            /// <summary>
             /// Screen Space Reflectionのレイマーチング処理
             /// </summary>
             bool isSsrRayTrace(
@@ -66,36 +97,14 @@ Shader "Custom/ScreenSpaceReflection"
                 bool isHit = false;
 
                 float3 startRayWS = startWS; // レイ開始位置
+                float2 rayUV; // レイのUV座標
 
                 // レイマーチング
                 [loop]
                 for (int n = 1; n <= _StepCount; n++)
                 {
                     startRayWS += deltaStep;
-                    float4 rayHCS = TransformWorldToHClip(startRayWS);
-
-                    float2 rayUV = rayHCS.xy / rayHCS.w * 0.5 + 0.5;
-                    #if UNITY_UV_STARTS_AT_TOP // 上下逆問題を修正
-                    rayUV.y = 1 - rayUV.y;
-                    #endif
-
-                    // 画面外チェック
-                    if (rayUV.x < 0 || rayUV.x > 1 ||
-                        rayUV.y < 0 || rayUV.y > 1)
-                        break;
-
-                    // レイ空間の仮想深度
-                    float deviceDepth = rayHCS.z / rayHCS.w;
-                    float rayDepth = Linear01Depth(deviceDepth, _ZBufferParams); // 手前0,奥1
-
-                    // 実際に表示されている画面からレイの深度を取得
-                    float rawDepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_PointClamp, rayUV);
-                    float depth = Linear01Depth(rawDepth, _ZBufferParams); // 手前0,奥1
-
-                    // めり込み判定・厚み付き 
-                    // rayDepthの方が手前ならめり込んでいる
-                    // rayDepth,depth: 0 ~ 1
-                    isHit = rayDepth > depth && rayDepth - depth < _Thickness;
+                    isHit = isRayHit(startRayWS, rayUV);
                     if (isHit)
                     {
                         hitUV = rayUV;
@@ -106,7 +115,21 @@ Shader "Custom/ScreenSpaceReflection"
                 // 2分探索
                 if (_BinarySearchIterations > 0 && isHit)
                 {
+                    startRayWS -= deltaStep; // 最後のステップでめり込んでいるので、1step分戻る
+                    deltaStep /= _BinarySearchIterations; // ステップ距離をさらに細かく
 
+                    // 二分探索 開始
+                    float mid = _BinarySearchIterations * 0.5; // 中心点から見ていく
+                    float nextDirection = mid; // 正なら奥、負なら手前 [ 未めり込み ] ---- 表面 ---- [ めり込み ]
+
+                    [loop]
+                    for (int n = 0; n < _BinarySearchIterations; n++)
+                    {
+                        startRayWS += deltaStep * nextDirection;
+                        mid *= 0.5; // さらに半分にして反射座標を絞る
+                        nextDirection = isRayHit(startRayWS, rayUV) ? -mid : mid;
+                        hitUV = rayUV;
+                    }
                 }
 
                 return isHit;

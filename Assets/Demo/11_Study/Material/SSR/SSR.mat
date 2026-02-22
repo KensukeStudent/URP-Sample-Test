@@ -85,7 +85,7 @@ Material:
     - _AddPrecomputedVelocity: 0
     - _AlphaClip: 0
     - _AlphaToMask: 0
-    - _BinarySearchIterations: 5
+    - _BinarySearchIterations: 2
     - _Blend: 0
     - _BlendModePreserveSpecular: 1
     - _BumpScale: 1
@@ -101,7 +101,7 @@ Material:
     - _GlossMapScale: 0
     - _Glossiness: 0
     - _GlossyReflections: 0
-    - _MaxRayDistance: 3
+    - _MaxRayDistance: 4.3
     - _Metallic: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.005
@@ -112,9 +112,9 @@ Material:
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _SrcBlendAlpha: 1
-    - _StepCount: 100
+    - _StepCount: 50
     - _Surface: 0
-    - _Thickness: 0.0045
+    - _Thickness: 0.0005
     - _WorkflowMode: 1
     - _XRMotionVectorsPass: 1
     - _ZWrite: 1
