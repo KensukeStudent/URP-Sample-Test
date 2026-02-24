@@ -45,6 +45,20 @@ Shader "Custom/ScreenSpaceReflection"
             int _BinarySearchIterations; // 二分探索の反復回数
             CBUFFER_END
 
+            // ノイズにパターンがある
+            float noise(float2 uv)
+            {
+                return frac(sin(dot(uv, float2(12.9898, 78.233))) * 43758.5453);
+            }
+
+            // ノイズにパターンが無いため、途中で変な模様になる
+            // float hash(float2 p)
+            // {
+            //     p = frac(p * 0.3183099 + 0.1);
+            //     p *= 17.0;
+            //     return frac(p.x * p.y * (p.x + p.y));
+            // }
+
             /// <summary>
             /// 入力したワールド座標が深度バッファにヒットしているか
             /// </summary>
@@ -83,7 +97,8 @@ Shader "Custom/ScreenSpaceReflection"
                 float3 worldPos, 
                 float3 reflectDir,
                 float dotNV, // 法線と視線の内積
-                out float2 hitUV)
+                out float2 hitUV,
+                float2 uv)
             {
                 // 正面に近いほど反射の影響を受けにくくする (SSRの都合上、カメラにオブジェクトが近いと大きく映る現象の回避)
                 // 0.6未満は減衰無し
@@ -103,7 +118,7 @@ Shader "Custom/ScreenSpaceReflection"
                 [loop]
                 for (int n = 1; n <= _StepCount; n++)
                 {
-                    startRayWS += deltaStep;
+                    startRayWS += deltaStep * (n + noise(uv + _Time.x));
                     isHit = isRayHit(startRayWS, rayUV);
                     if (isHit)
                     {
@@ -153,7 +168,7 @@ Shader "Custom/ScreenSpaceReflection"
                 // レイマーチング
                 float dotNV = dot(normal, viewDir);
                 float2 hitUV;
-                bool isHit = isSsrRayTrace(worldPos, reflectDir, dotNV, hitUV);
+                bool isHit = isSsrRayTrace(worldPos, reflectDir, dotNV, hitUV, IN.texcoord);
                 if (isHit)
                 {
                     IN.texcoord = hitUV;
