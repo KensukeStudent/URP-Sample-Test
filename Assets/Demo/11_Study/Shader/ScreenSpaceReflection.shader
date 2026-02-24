@@ -8,7 +8,7 @@ Shader "Custom/ScreenSpaceReflection"
     {
         _MaxRayDistance("Max Ray Distance", Range(1, 100)) = 10.0 // レイの最大距離
         _StepCount("Step Count", Range(1, 100)) = 10 // step数が多いと読み込みが長く重くなりやすい感じ
-        _Thickness("Thickness", Range(0.0, 0.1)) = 0.0 // 厚み
+        _Thickness("Thickness", Range(0.0, 64.0)) = 0.0 // 厚み
         _BinarySearchIterations("Binary Search Iterations", Range(0, 32)) = 5 // 二分探索の反復回数
     }
 
@@ -73,7 +73,7 @@ Shader "Custom/ScreenSpaceReflection"
                 // めり込み判定・厚み付き 
                 // rayDepthの方が手前ならめり込んでいる
                 // rayDepth,depth: 0 ~ 1
-                return rayDepth > depth && rayDepth - depth < _Thickness;
+                return rayDepth > depth && (rayDepth - depth)*10000 < _Thickness;
             }
 
             /// <summary>
