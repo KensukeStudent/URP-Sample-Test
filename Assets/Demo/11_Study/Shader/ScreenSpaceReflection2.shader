@@ -2,7 +2,7 @@
 // フレームバッファフェッチ: https://docs.unity3d.com/ja/6000.0/Manual/urp/render-graph-framebuffer-fetch.html
 // GPU のオンチップメモリからフレームバッファにアクセスできます
 
-Shader "Custom/ScreenSpaceReflection"
+Shader "Custom/ScreenSpaceReflection2"
 {
     Properties
     {
@@ -59,13 +59,13 @@ Shader "Custom/ScreenSpaceReflection"
                 float3 deltaStep = (endWS - startWS) / _StepCount; // 1stepあたりの移動量
                 bool isHit = false;
 
-                float3 startRayWS = startWS; // レイ開始位置
+                float3 startRayWS; // レイ開始位置
 
                 // レイマーチング
                 [loop]
                 for (int n = 1; n <= _StepCount; n++)
                 {
-                    startRayWS += deltaStep;
+                    startRayWS = startWS + deltaStep * n;
                     float4 rayHCS = TransformWorldToHClip(startRayWS);
 
                     float2 rayUV = rayHCS.xy / rayHCS.w * 0.5 + 0.5;
@@ -95,12 +95,6 @@ Shader "Custom/ScreenSpaceReflection"
                         hitUV = rayUV;
                         break;
                     }
-                }
-
-                // 2分探索
-                if (_BinarySearchIterations > 0 && isHit)
-                {
-
                 }
 
                 return isHit;

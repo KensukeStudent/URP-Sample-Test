@@ -9,7 +9,7 @@ Shader "Custom/ScreenSpaceReflection"
         _MaxRayDistance("Max Ray Distance", Range(1, 100)) = 10.0 // レイの最大距離
         _StepCount("Step Count", Range(1, 100)) = 10 // step数が多いと読み込みが長く重くなりやすい感じ
         _Thickness("Thickness", Range(0.0, 64.0)) = 0.0 // 厚み
-        _BinarySearchIterations("Binary Search Iterations", Range(0, 32)) = 5 // 二分探索の反復回数
+        // _BinarySearchIterations("Binary Search Iterations", Range(0, 32)) = 5 // 二分探索の反復回数
     }
 
     SubShader
@@ -18,6 +18,8 @@ Shader "Custom/ScreenSpaceReflection"
 
         Pass
         {
+            Name "ScreenSpaceReflection"
+
             HLSLPROGRAM
 
             #pragma vertex Vert
@@ -42,7 +44,7 @@ Shader "Custom/ScreenSpaceReflection"
             int _MaxRayDistance; // レイの最大距離
             int _StepCount; // レイマーチングのステップ数
             float _Thickness; // 厚み
-            int _BinarySearchIterations; // 二分探索の反復回数
+            // int _BinarySearchIterations; // 二分探索の反復回数
             CBUFFER_END
 
             // ノイズにパターンがある
@@ -84,6 +86,9 @@ Shader "Custom/ScreenSpaceReflection"
                 float rawDepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_PointClamp, rayUV);
                 float depth = Linear01Depth(rawDepth, _ZBufferParams); // 手前0,奥1
 
+                if (depth >= 1.0)
+                    return false; // 画面上のどこにもオブジェクトがない場合はヒットしない
+
                 // めり込み判定・厚み付き 
                 // rayDepthの方が手前ならめり込んでいる
                 // rayDepth,depth: 0 ~ 1
@@ -118,7 +123,7 @@ Shader "Custom/ScreenSpaceReflection"
                 [loop]
                 for (int n = 1; n <= _StepCount; n++)
                 {
-                    startRayWS += deltaStep * (n + noise(uv + _Time.x));
+                    startRayWS = startWS + deltaStep * (n + noise(uv/*+ _Time.x*/));
                     isHit = isRayHit(startRayWS, rayUV);
                     if (isHit)
                     {
@@ -127,25 +132,25 @@ Shader "Custom/ScreenSpaceReflection"
                     }
                 }
 
-                // 2分探索
-                if (_BinarySearchIterations > 0 && isHit)
-                {
-                    startRayWS -= deltaStep; // 最後のステップでめり込んでいるので、1step分戻る
-                    deltaStep /= _BinarySearchIterations; // ステップ距離をさらに細かく
+                // // 2分探索 TODO: あまり効果的ではなさそう
+                // if (_BinarySearchIterations > 0 && isHit)
+                // {
+                //     startRayWS -= deltaStep; // 最後のステップでめり込んでいるので、1step分戻る
+                //     deltaStep /= _BinarySearchIterations; // ステップ距離をさらに細かく
 
-                    // 二分探索 開始
-                    float mid = _BinarySearchIterations * 0.5; // 中心点から見ていく
-                    float nextDirection = mid; // 正なら奥、負なら手前 [ 未めり込み ] ---- 表面 ---- [ めり込み ]
+                //     // 二分探索 開始
+                //     float mid = _BinarySearchIterations * 0.5; // 中心点から見ていく
+                //     float nextDirection = mid; // 正なら奥、負なら手前 [ 未めり込み ] ---- 表面 ---- [ めり込み ]
 
-                    [loop]
-                    for (int n = 0; n < _BinarySearchIterations; n++)
-                    {
-                        startRayWS += deltaStep * nextDirection;
-                        mid *= 0.5; // さらに半分にして反射座標を絞る
-                        nextDirection = isRayHit(startRayWS, rayUV) ? -mid : mid;
-                        hitUV = rayUV;
-                    }
-                }
+                //     [loop]
+                //     for (int n = 0; n < _BinarySearchIterations; n++)
+                //     {
+                //         startRayWS += deltaStep * nextDirection;
+                //         mid *= 0.5; // さらに半分にして反射座標を絞る
+                //         nextDirection = isRayHit(startRayWS, rayUV) ? -mid : mid;
+                //         hitUV = rayUV;
+                //     }
+                // }
 
                 return isHit;
             }
@@ -163,7 +168,7 @@ Shader "Custom/ScreenSpaceReflection"
                 float3 reflectDir = reflect(viewDir, normal);
 
                 // カラー
-                half4 color = FragNearest(IN);
+                half4 color = 0;// = FragNearest(IN);
 
                 // レイマーチング
                 float dotNV = dot(normal, viewDir);
@@ -172,14 +177,40 @@ Shader "Custom/ScreenSpaceReflection"
                 if (isHit)
                 {
                     IN.texcoord = hitUV;
-                    color += FragNearest(IN) * 0.2;
+                    color = FragNearest(IN) * 0.2;
                 }
 
                 return color;
             }
             ENDHLSL
+        }        
+        
+        Pass
+        {
+            Name "Composite"
+
+            HLSLPROGRAM
+
+            #pragma vertex Vert
+            #pragma fragment frag
+
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
+            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
+
+            // TEXTURE2D_X(_GaussTexture);
+            TEXTURE2D_X(_SSRTexture);
+
+            half4 frag(Varyings IN) : SV_Target
+            {
+                float4 ssr = SAMPLE_TEXTURE2D(_SSRTexture, sampler_LinearClamp, IN.texcoord);
+                return FragNearest(IN) + ssr;
+            }
+            ENDHLSL
         }
     }
+
+
 }
 
 // // 検証用
