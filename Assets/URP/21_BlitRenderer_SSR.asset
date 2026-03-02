@@ -15,7 +15,7 @@ MonoBehaviour:
   m_Active: 1
   settings:
     renderPassEvent: 550
-    material: {fileID: 2100000, guid: 17ca04b5afc0ddf449dddc5e36040a09, type: 2}
+    material: {fileID: 2100000, guid: c80e6f0317037594d96e28220a5273b3, type: 2}
   gaussMaterial: {fileID: 2100000, guid: 5ed05305173d4c54c9a0e48f1bc2e7d3, type: 2}
   dispersion: 1
 --- !u!114 &11400000
