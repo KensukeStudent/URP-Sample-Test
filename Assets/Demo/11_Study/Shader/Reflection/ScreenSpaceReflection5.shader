@@ -73,11 +73,10 @@ Shader "Custom/ScreenSpaceReflection5"
                 float3 startWS = worldPos;
                 float3 endWS = worldPos + reflectDir * rayDistance; // 適当な距離
                 float3 deltaStep = (endWS - startWS) / _StepCount; // 1stepあたりの移動量
-                bool isHit = false;
 
                 float3 startRayWS = startWS; // レイ開始位置
-                float2 hitUV;
                 float2 rayUV; // レイのUV座標
+                float hitMask = 0;
 
                 // レイマーチング
                 [loop]
@@ -95,6 +94,7 @@ Shader "Custom/ScreenSpaceReflection5"
                     // 壁反射に変な色が混じるのを防ぐ（レイが長いときに発生する）
                     if (rayUV.x < 0 || rayUV.x > 1 || rayUV.y < 0 || rayUV.y > 1)
                     {
+                        hitMask = 0.0;
                         break;
                     }
 
@@ -110,6 +110,7 @@ Shader "Custom/ScreenSpaceReflection5"
                     // 背景などに白い粒子が見えるのを防ぐ
                     if (depth >= 1.0)
                     {
+                        hitMask = 0;
                         break;
                     }
 
@@ -121,17 +122,24 @@ Shader "Custom/ScreenSpaceReflection5"
 
                     // 厚みが大きい場合はリターン
                     // 400は手動で調整した値, _Thicknessは0~1の範囲にしたかった
-                    if (depthDiff < 0 || depthDiff * 400 > _Thickness)
+                    if (depthDiff < 0)
                     {
+                        hitMask = 0.05;
                         continue;
                     }
-                    hitUV = rayUV;
+
+                    if (depthDiff * 400 > _Thickness)
+                    {
+                        hitMask = 0.05;
+                        continue;
+                    }
+
+                    hitMask = 0.1;
                     break;
                 }
-                IN.texcoord = hitUV;
-                color = FragNearest(IN) * 0.2;
 
-                return color;
+                IN.texcoord = rayUV;
+                return FragNearest(IN) * hitMask;
             }
             ENDHLSL
         }        
@@ -162,3 +170,6 @@ Shader "Custom/ScreenSpaceReflection5"
         }
     }
 }
+
+// フェードであった方がよいもの
+// 距離、端
