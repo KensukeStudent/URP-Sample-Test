@@ -97,6 +97,8 @@ Material:
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
     - _DstBlendAlpha: 0
+    - _EdgeDistance: 25
+    - _EdgeExponent: 1
     - _EnvironmentReflections: 1
     - _FadeDistance: 4
     - _FadeDistanceExponent: 2

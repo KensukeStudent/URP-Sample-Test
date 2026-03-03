@@ -11,6 +11,8 @@ Shader "Custom/ScreenSpaceReflection5"
         _Thickness("Thickness", Range(0.0, 1.0)) = 0.0 // 厚み
         _FadeDistance("Fade Distance", Range(1.0, 100.0)) = 5.0 // フェイド距離
         _FadeDistanceExponent("Fade Distance Exponent", Range(1.0, 10.0)) = 2.0 // フェイド距離の指数
+        _EdgeDistance("Edge Distance", Range(0.0, 100.0)) = 1.0 // 周辺フェイドの距離
+        _EdgeExponent("Edge Exponent", Range(1.0, 10.0)) = 3.0 // 周辺フェイドの指数
     }
 
     SubShader
@@ -46,8 +48,14 @@ Shader "Custom/ScreenSpaceReflection5"
             int _StepCount; // レイマーチングのステップ数
             float _Thickness; // 厚み
             // int _BinarySearchIterations; // 二分探索の反復回数
+
+            // 距離フェイド ---------------------------------------
             float _FadeDistance; // フェイド距離
             float _FadeDistanceExponent; // フェイド距離の指数
+
+            // 周辺フェイド ---------------------------------------
+            float _EdgeDistance; // 周辺フェイドの距離
+            float _EdgeExponent; // 周辺フェイドの指数
             CBUFFER_END
 
             // ノイズにパターンがある
@@ -142,10 +150,25 @@ Shader "Custom/ScreenSpaceReflection5"
                     break;
                 }
 
-                IN.texcoord = rayUV;
+                // ---------------------------------------------------
+                // フェイド
+                // ---------------------------------------------------
+
+                // 距離フェイド
                 float distanceFade = length(startRayWS - worldPos);
                 distanceFade = saturate(1 - pow(distanceFade / _FadeDistance, _FadeDistanceExponent));
-                return FragNearest(IN) * hitMask * distanceFade;
+
+                // 周辺フェイド
+                // u(1 - u) * v(1 - v)の形で、中心が0.25、端が0になるような値を作る
+                half2 edgeUV = IN.texcoord * (1 - IN.texcoord);
+                // uかvのどちらかが0なら0（端は黒）、両方に値があるほど緩やかに明るくなる
+                // 係数で明るさ調整
+                float edge = edgeUV.x * edgeUV.y * _EdgeDistance;
+                // フェイドの鋭さ
+                edge = saturate(pow(abs(edge), _EdgeExponent));
+
+                IN.texcoord = rayUV;
+                return FragNearest(IN) * hitMask * distanceFade * edge;
             }
             ENDHLSL
         }        
