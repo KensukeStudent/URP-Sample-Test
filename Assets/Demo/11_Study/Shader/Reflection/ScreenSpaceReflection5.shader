@@ -9,6 +9,8 @@ Shader "Custom/ScreenSpaceReflection5"
         _MaxRayDistance("Max Ray Distance", Range(1, 10)) = 5.0 // レイの最大距離
         _StepCount("Step Count", Range(1, 100)) = 10 // step数が多いと読み込みが長く重くなりやすい感じ
         _Thickness("Thickness", Range(0.0, 1.0)) = 0.0 // 厚み
+        _FadeDistance("Fade Distance", Range(1.0, 100.0)) = 5.0 // フェイド距離
+        _FadeDistanceExponent("Fade Distance Exponent", Range(1.0, 10.0)) = 2.0 // フェイド距離の指数
     }
 
     SubShader
@@ -44,6 +46,8 @@ Shader "Custom/ScreenSpaceReflection5"
             int _StepCount; // レイマーチングのステップ数
             float _Thickness; // 厚み
             // int _BinarySearchIterations; // 二分探索の反復回数
+            float _FadeDistance; // フェイド距離
+            float _FadeDistanceExponent; // フェイド距離の指数
             CBUFFER_END
 
             // ノイズにパターンがある
@@ -139,7 +143,9 @@ Shader "Custom/ScreenSpaceReflection5"
                 }
 
                 IN.texcoord = rayUV;
-                return FragNearest(IN) * hitMask;
+                float distanceFade = length(startRayWS - worldPos);
+                distanceFade = saturate(1 - pow(distanceFade / _FadeDistance, _FadeDistanceExponent));
+                return FragNearest(IN) * hitMask * distanceFade;
             }
             ENDHLSL
         }        
