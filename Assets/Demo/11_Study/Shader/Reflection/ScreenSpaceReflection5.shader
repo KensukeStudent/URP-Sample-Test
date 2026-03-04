@@ -186,13 +186,13 @@ Shader "Custom/ScreenSpaceReflection5"
             #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
-            // TEXTURE2D_X(_GaussTexture);
-            TEXTURE2D_X(_SSRTexture);
+            TEXTURE2D_X(_GaussTexture);
+            //TEXTURE2D_X(_SSRTexture);
 
             half4 frag(Varyings IN) : SV_Target
             {
-                float4 ssr = SAMPLE_TEXTURE2D(_SSRTexture, sampler_LinearClamp, IN.texcoord);
-                return FragNearest(IN) + ssr;
+                float4 gauss = SAMPLE_TEXTURE2D(_GaussTexture, sampler_LinearClamp, IN.texcoord);
+                return FragNearest(IN) + gauss;
                 // return ssr;
             }
             ENDHLSL

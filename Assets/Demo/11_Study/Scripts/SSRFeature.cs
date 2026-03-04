@@ -124,16 +124,16 @@ public class SSRFeature : ScriptableRendererFeature
                 });
             }
 
-            // // ------------------------------------------------------------ 
-            // // ssr texture -> blur texture
-            // // ------------------------------------------------------------
+            // ------------------------------------------------------------ 
+            // ssr texture -> blur texture
+            // ------------------------------------------------------------
 
-            // // グローバル変数用登録 indexは0から始まるので注意
-            // gaussRenderer.RecordRenderGraph(renderGraph, cameraData.cameraTargetDescriptor, ssrTextureHandle, Shader.PropertyToID("_GaussTexture"));
+            // グローバル変数用登録 indexは0から始まるので注意
+            gaussRenderer.RecordRenderGraph(renderGraph, cameraData.cameraTargetDescriptor, ssrTextureHandle, Shader.PropertyToID("_GaussTexture"));
 
-            // // ------------------------------------------------------------ 
-            // // blur texture -> combine texture
-            // // ------------------------------------------------------------
+            // ------------------------------------------------------------ 
+            // blur texture -> combine texture
+            // ------------------------------------------------------------
 
             // combineテクスチャー
             TextureHandle combineTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_CombineTexture", true, FilterMode.Point);
