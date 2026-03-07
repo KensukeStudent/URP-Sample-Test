@@ -74,8 +74,8 @@ Shader "CubeMapReflectProbe"
             
             fixed4 frag (v2f i) : SV_Target
             {
-                half3 worldViewDir = normalize(i.worldPos - _WorldSpaceCameraPos);
-                half3 reflDir = reflect(worldViewDir, i.worldNormal);
+                half3 worldViewDir = normalize(_WorldSpaceCameraPos - i.worldPos);
+                half3 reflDir = reflect(-worldViewDir, i.worldNormal);
                 reflDir = _BoxProjection == 1 ? boxProjection(i.worldPos, reflDir) : reflDir;
                 
                 // unity_SpecCube0はUnityで定義されているキューブマップ

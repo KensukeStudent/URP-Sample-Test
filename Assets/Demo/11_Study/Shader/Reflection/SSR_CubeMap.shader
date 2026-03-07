@@ -57,8 +57,8 @@ Shader "Custom/SSR_CubeMap"
             {
                 // 移り込み補正のために反射ベクトルの長さの調整
                 // それぞれの面との距離を求める
-                float3 boxMin = unity_SpecCube0_BoxMin;
-                float3 boxMax = unity_SpecCube0_BoxMax;
+                float3 boxMin = unity_SpecCube1_BoxMin;
+                float3 boxMax = unity_SpecCube1_BoxMax;
                 // cubeMapのどこの壁に当たるかチェック
                 // x = worldPos + reflDir * magnitude;
                 // magnitude = (x - worldPos) / reflDir
@@ -69,7 +69,7 @@ Shader "Custom/SSR_CubeMap"
                 float magnitude = min(min(magnitudeX, magnitudeY), magnitudeZ);
 
                 // probe中心からの斜辺(ベクトル方向)を求める
-                float3 a = worldPos - unity_SpecCube0_ProbePosition;
+                float3 a = worldPos - unity_SpecCube1_ProbePosition;
                 float3 c = reflDir * magnitude;
                 float3 b = a + c;
 
@@ -77,22 +77,30 @@ Shader "Custom/SSR_CubeMap"
                 // 反射ベクトル
                 return b;
             }
+
+            half3 GlossyEnvironmentReflection2(half3 reflectVector, half perceptualRoughness, half occlusion)
+            {
+                half mip = PerceptualRoughnessToMipmapLevel(perceptualRoughness);
+                half4 encodedIrradiance = half4(SAMPLE_TEXTURECUBE_LOD(unity_SpecCube1, samplerunity_SpecCube1, reflectVector, mip));
+                half3 irradiance = DecodeHDREnvironment(encodedIrradiance, unity_SpecCube1_HDR);
+                return irradiance * occlusion;
+            }
             
             half4 frag (Varyings IN) : SV_Target
             {
                 half depth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_PointClamp, IN.texcoord).r;
                 float3 worldPos = ComputeWorldSpacePosition(IN.texcoord, depth, UNITY_MATRIX_I_VP);
-                half3 viewDir = normalize(worldPos - _WorldSpaceCameraPos);
+                half3 viewDir = normalize(_WorldSpaceCameraPos - worldPos); // obj -> camera
 
-                float4 normal = LOAD_FRAMEBUFFER_X_INPUT(GBUFFER2, IN.positionCS); // GBuffer Normal[-1~1]/Smoothness
-                half3 reflDir = reflect(viewDir, normal);
+                float4 gbuffer2 = LOAD_FRAMEBUFFER_X_INPUT(GBUFFER2, IN.positionCS); // GBuffer Normal[-1~1]/Smoothness
+                half3 reflDir = reflect(-viewDir, gbuffer2.xyz);
+                reflDir = boxProjection(worldPos, reflDir);
             
                 float occlusion = LOAD_FRAMEBUFFER_X_INPUT(GBUFFER1, IN.positionCS).a; // GBuffer Occlusion
-                float smoothness = LOAD_FRAMEBUFFER_X_INPUT(GBUFFER2, IN.positionCS).a; // GBuffer Smoothness
-                float roughness = 1 - smoothness; // Smoothness -> Roughness
+                float roughness = 1 - gbuffer2.a; // Smoothness -> Roughness
                 
-                // unity_SpecCube0はUnityで定義されているキューブマップ
-                half3 reflectionColor = GlossyEnvironmentReflection(reflDir, roughness, occlusion);
+                // unity_SpecCube1はUnityで定義されているキューブマップ
+                half3 reflectionColor = GlossyEnvironmentReflection2(reflDir, roughness, occlusion);
                 return half4(reflectionColor, 1);
             }
             ENDHLSL
