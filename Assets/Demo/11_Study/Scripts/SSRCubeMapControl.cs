@@ -1,13 +1,26 @@
 using UnityEngine;
 
+[ExecuteAlways]
 public class SSRCubeMapControl : MonoBehaviour
 {
     [SerializeField] private ReflectionProbe probe = null;
+    [SerializeField] private Material material = null;
 
-    [SerializeField] private RenderTexture renderTexture = null;
-
-    private void Start()
+    void Update()
     {
-        probe.RenderProbe(renderTexture);
+        UpdateParam();
+    }
+
+    private void UpdateParam()
+    {
+        var bounds = probe.bounds;
+
+        material.SetTexture("_ReflectionProbe", probe.texture);
+
+        material.SetVector("_ProbePosition", probe.transform.position);
+        material.SetVector("_CubeMapMin", bounds.min);
+        material.SetVector("_CubeMapMax", bounds.max);
+
+        material.SetVector("_CubeMapHDR", probe.textureHDRDecodeValues);
     }
 }
