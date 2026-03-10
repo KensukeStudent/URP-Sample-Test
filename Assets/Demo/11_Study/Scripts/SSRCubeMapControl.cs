@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 [ExecuteAlways]
 public class SSRCubeMapControl : MonoBehaviour
@@ -13,13 +14,13 @@ public class SSRCubeMapControl : MonoBehaviour
 
     private void UpdateParam()
     {
-        var bounds = probe.bounds;
-
         material.SetTexture("_ReflectionProbe", probe.texture);
 
-        material.SetVector("_ProbePosition", probe.transform.position);
-        material.SetVector("_CubeMapMin", bounds.min);
-        material.SetVector("_CubeMapMax", bounds.max);
+        // unity公式と同じパラメータ
+        var probeTransform = probe.transform;
+        material.SetVector("_ProbePosition", new Vector4(probeTransform.position.x, probeTransform.position.y, probeTransform.position.z, probe.texture.mipmapCount));
+        material.SetVector("_CubeMapMax", new Vector4(probe.bounds.max.x, probe.bounds.max.y, probe.bounds.max.z, probe.blendDistance));
+        material.SetVector("_CubeMapMin", new Vector4(probe.bounds.min.x, probe.bounds.min.y, probe.bounds.min.z, probe.importance));
 
         material.SetVector("_CubeMapHDR", probe.textureHDRDecodeValues);
     }

@@ -49,43 +49,44 @@ Shader "Custom/SSR_CubeMap"
 
             FRAMEBUFFER_INPUT_X_HALF(GBUFFER1);
             FRAMEBUFFER_INPUT_X_HALF(GBUFFER2);
+            FRAMEBUFFER_INPUT_X_HALF(GBUFFER3);
 
             // cubemap
             TEXTURECUBE(_ReflectionProbe);
             SAMPLER(sampler_ReflectionProbe);
 
-            float3 _ProbePosition;
-            float3 _CubeMapMin;
-            float3 _CubeMapMax;
+            float4 _CubeMapMax;    // w contains the blend distance
+            float4 _CubeMapMin;    // w contains the importance
+            float4 _ProbePosition; // w is positive for box projection, |w| is max mip level
             float4 _CubeMapHDR;
 
-            // /// <summary>
-            // /// 反射ベクトルがprobe中心からずれた場合に、中心からの反射ベクトル方向へ戻す処理
-            // /// </summary>
-            // float3 boxProjection(float3 worldPos, float3 reflDir)
-            // {
-            //     // 移り込み補正のために反射ベクトルの長さの調整
-            //     // それぞれの面との距離を求める
-            //     float3 boxMin = (_CubeMapMin - worldPos) / reflDir;
-            //     float3 boxMax = (_CubeMapMax - worldPos) / reflDir;
-            //     // cubeMapのどこの壁に当たるかチェック
-            //     // x = worldPos + reflDir * magnitude;
-            //     // magnitude = (x - worldPos) / reflDir
-            //     float magnitudeX = reflDir.x > 0 ? boxMax.x : boxMin.x;
-            //     float magnitudeY = reflDir.y > 0 ? boxMax.y : boxMin.y;
-            //     float magnitudeZ = reflDir.z > 0 ? boxMax.z : boxMin.z;
+            /// <summary>
+            /// 反射ベクトルがprobe中心からずれた場合に、中心からの反射ベクトル方向へ戻す処理
+            /// </summary>
+            float3 boxProjection(float3 reflDir, float3 worldPos)
+            {
+                // 移り込み補正のために反射ベクトルの長さの調整
+                // それぞれの面との距離を求める
+                float3 boxMin = (_CubeMapMin - worldPos) / reflDir;
+                float3 boxMax = (_CubeMapMax - worldPos) / reflDir;
+                // cubeMapのどこの壁に当たるかチェック
+                // x = worldPos + reflDir * magnitude;
+                // magnitude = (x - worldPos) / reflDir
+                float magnitudeX = reflDir.x > 0 ? boxMax.x : boxMin.x;
+                float magnitudeY = reflDir.y > 0 ? boxMax.y : boxMin.y;
+                float magnitudeZ = reflDir.z > 0 ? boxMax.z : boxMin.z;
 
-            //     float magnitude = min(min(magnitudeX, magnitudeY), magnitudeZ);
+                float magnitude = min(min(magnitudeX, magnitudeY), magnitudeZ);
 
-            //     // probe中心からの斜辺(ベクトル方向)を求める
-            //     float3 a = worldPos - _ProbePosition;
-            //     float3 c = reflDir * magnitude;
-            //     float3 b = a + c;
+                // probe中心からの斜辺(ベクトル方向)を求める
+                float3 a = worldPos - _ProbePosition;
+                float3 c = reflDir * magnitude;
+                float3 b = a + c;
 
-            //     // probeの中心座標
-            //     // 反射ベクトル
-            //     return normalize(b);
-            // }
+                // probeの中心座標
+                // 反射ベクトル
+                return b;
+            }
 
             half3 GlossyEnvironmentReflection2(half3 reflectVector, half perceptualRoughness, half occlusion)
             {
@@ -97,21 +98,23 @@ Shader "Custom/SSR_CubeMap"
             
             half4 frag (Varyings IN) : SV_Target
             {
-                half depth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_PointClamp, IN.texcoord).r;
-                float3 worldPos = ComputeWorldSpacePosition(IN.texcoord, depth, UNITY_MATRIX_I_VP);
-                half3 viewDir = normalize(_WorldSpaceCameraPos - worldPos); // obj -> camera
+                half depth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, sampler_PointClamp, IN.texcoord).r; // Before Rendering Post Processing実行の際に取得される
+                // float depth = SampleSceneDepth(IN.texcoord);
+                // float depth = LOAD_FRAMEBUFFER_X_INPUT(GBUFFER3, IN.positionCS.xy).r;
+                float3 positionWS = ComputeWorldSpacePosition(IN.texcoord, depth, UNITY_MATRIX_I_VP);
+                half3 viewDir = normalize(_WorldSpaceCameraPos - positionWS); // obj -> camera
 
                 float4 gbuffer2 = LOAD_FRAMEBUFFER_X_INPUT(GBUFFER2, IN.positionCS.xy); // GBuffer Normal[-1~1]/Smoothness
                 float3 normalWS = normalize(gbuffer2.xyz);
                 half3 reflDir = reflect(-viewDir, normalWS);
-                // reflDir = boxProjection(worldPos, reflDir);
+                reflDir = boxProjection(reflDir, positionWS);
             
                 float occlusion = LOAD_FRAMEBUFFER_X_INPUT(GBUFFER1, IN.positionCS.xy).a; // GBuffer Occlusion
                 float roughness = 1 - gbuffer2.a; // Smoothness -> Roughness
                 
                 // unity_SpecCube1はUnityで定義されているキューブマップ
                 half3 reflectionColor = GlossyEnvironmentReflection2(reflDir, roughness, occlusion);
-                return half4(reflectionColor, 1);
+                return half4(reflectionColor,1);
             }
             ENDHLSL
         }
