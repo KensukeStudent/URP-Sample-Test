@@ -12,8 +12,14 @@ public class SSRCubeMapControl : MonoBehaviour
         UpdateParam();
     }
 
+    // void OnEnable()
+    // {
+    //     probe.RenderProbe();
+    // }
+
     private void UpdateParam()
     {
+        probe.RenderProbe();
         material.SetTexture("_ReflectionProbe", probe.texture);
 
         // unity公式と同じパラメータ
@@ -23,5 +29,6 @@ public class SSRCubeMapControl : MonoBehaviour
         material.SetVector("_CubeMapMin", new Vector4(probe.bounds.min.x, probe.bounds.min.y, probe.bounds.min.z, probe.importance));
 
         material.SetVector("_CubeMapHDR", probe.textureHDRDecodeValues);
+        //probe.enabled = false;
     }
 }

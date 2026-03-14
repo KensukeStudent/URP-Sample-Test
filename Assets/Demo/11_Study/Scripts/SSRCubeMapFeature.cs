@@ -90,51 +90,24 @@ public class SSRCubeMapFeature : ScriptableRendererFeature
 
             // テクスチャー情報
             RenderTextureDescriptor desc = cameraData.cameraTargetDescriptor;
-            // desc.colorFormat = RenderTextureFormat.ARGB64; // Enable alpha
+            desc.colorFormat = RenderTextureFormat.ARGB32; // Enable alpha
             desc.msaaSamples = 1;
             desc.depthBufferBits = 0;
 
-            // cubeMapテクスチャー
-            TextureHandle cubeMapTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_CubeMapTexture", true, FilterMode.Point);
-
-            // ------------------------------------------------------------ 
-            // camera color texture -> cubeMap texture
-            // ------------------------------------------------------------
-
-            // cubeMap texture RT -> camera color RT
-            using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
-            {
-                // Set tempRT for read
-                builder.UseTexture(cameraColorTextureHandler, AccessFlags.Read);
-                // Set camera color RT for write
-                builder.SetRenderAttachment(cubeMapTextureHandle, 0, AccessFlags.Write);
-
-                // Resources/References for pass execution
-                // Blit source texture
-                passData.sourceTextureHandle = cameraColorTextureHandler;
-                passData.material = material;
-
-                builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
-                {
-                    RasterCommandBuffer cmd = graphContext.cmd;
-                    Blitter.BlitTexture(cmd, passData.sourceTextureHandle, new Vector4(1, 1, 0, 0), passData.material, 0);
-                });
-            }
-
-            // // SSRテクスチャー
-            // TextureHandle ssrTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_SSRTexture", true, FilterMode.Point);
+            // // cubeMapテクスチャー
+            // TextureHandle cubeMapTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_CubeMapTexture", true, FilterMode.Point);
 
             // // ------------------------------------------------------------ 
-            // // camera color texture -> ssr texture
+            // // camera color texture -> cubeMap texture
             // // ------------------------------------------------------------
 
-            // // bloom texture RT -> camera color RT
+            // // cubeMap texture RT -> camera color RT
             // using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
             // {
             //     // Set tempRT for read
             //     builder.UseTexture(cameraColorTextureHandler, AccessFlags.Read);
             //     // Set camera color RT for write
-            //     builder.SetRenderAttachment(ssrTextureHandle, 0, AccessFlags.Write);
+            //     builder.SetRenderAttachment(cubeMapTextureHandle, 0, AccessFlags.Write);
 
             //     // Resources/References for pass execution
             //     // Blit source texture
@@ -146,48 +119,82 @@ public class SSRCubeMapFeature : ScriptableRendererFeature
             //     builder.AllowGlobalStateModification(true);
             //     // 解説 *2
             //     // negativeTextureHandleが描画された後に、"_NormalEdgeTexture"という名前のGlobalTextureに設定する
-            //     builder.SetGlobalTextureAfterPass(ssrTextureHandle, Shader.PropertyToID("_SSRTexture"));
+            //     builder.SetGlobalTextureAfterPass(cubeMapTextureHandle, Shader.PropertyToID("_CubeMapTexture"));
 
             //     builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
             //     {
             //         RasterCommandBuffer cmd = graphContext.cmd;
-            //         Blitter.BlitTexture(cmd, passData.sourceTextureHandle, new Vector4(1, 1, 0, 0), passData.material, 1);
+            //         Blitter.BlitTexture(cmd, passData.sourceTextureHandle, new Vector4(1, 1, 0, 0), passData.material, 0);
             //     });
             // }
 
-            // // ------------------------------------------------------------ 
-            // // ssr texture -> blur texture
-            // // ------------------------------------------------------------
+            // SSRテクスチャー
+            TextureHandle ssrTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_SSRTexture", true, FilterMode.Bilinear);
 
-            // // グローバル変数用登録 indexは0から始まるので注意
-            // gaussRenderer.RecordRenderGraph(renderGraph, cameraData.cameraTargetDescriptor, ssrTextureHandle, Shader.PropertyToID("_GaussTexture"));
+            // ------------------------------------------------------------ 
+            // camera color texture -> ssr texture
+            // ------------------------------------------------------------
 
-            // // ------------------------------------------------------------ 
-            // // blur texture -> combine texture
-            // // ------------------------------------------------------------
+            // bloom texture RT -> camera color RT
+            using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
+            {
+                // Set tempRT for read
+                builder.UseTexture(cameraColorTextureHandler, AccessFlags.Read);
+                // Set camera color RT for write
+                builder.SetRenderAttachment(ssrTextureHandle, 0, AccessFlags.Write);
 
-            // // combineテクスチャー
-            // TextureHandle combineTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_CombineTexture", true, FilterMode.Point);
+                // Resources/References for pass execution
+                // Blit source texture
+                passData.sourceTextureHandle = cameraColorTextureHandler;
+                passData.material = material;
 
-            // // bloom texture RT -> camera color RT
-            // using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
-            // {
-            //     // Set tempRT for read
-            //     builder.UseTexture(cameraColorTextureHandler, AccessFlags.Read);
-            //     // Set camera color RT for write
-            //     builder.SetRenderAttachment(combineTextureHandle, 0, AccessFlags.Write);
+                // ShaderのGlobal変数への設定ができるように
+                // 要注意！
+                builder.AllowGlobalStateModification(true);
+                // 解説 *2
+                // negativeTextureHandleが描画された後に、"_NormalEdgeTexture"という名前のGlobalTextureに設定する
+                builder.SetGlobalTextureAfterPass(ssrTextureHandle, Shader.PropertyToID("_SSRTexture"));
 
-            //     // Resources/References for pass execution
-            //     // Blit source texture
-            //     passData.sourceTextureHandle = cameraColorTextureHandler;
-            //     passData.material = material;
+                builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
+                {
+                    RasterCommandBuffer cmd = graphContext.cmd;
+                    Blitter.BlitTexture(cmd, passData.sourceTextureHandle, new Vector4(1, 1, 0, 0), passData.material, 1);
+                });
+            }
 
-            //     builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
-            //     {
-            //         RasterCommandBuffer cmd = graphContext.cmd;
-            //         Blitter.BlitTexture(cmd, passData.sourceTextureHandle, new Vector4(1, 1, 0, 0), passData.material, 2);
-            //     });
-            // }
+            // ------------------------------------------------------------ 
+            // ssr texture -> blur texture
+            // ------------------------------------------------------------
+
+            // グローバル変数用登録 indexは0から始まるので注意
+            gaussRenderer.RecordRenderGraph(renderGraph, cameraData.cameraTargetDescriptor, ssrTextureHandle, Shader.PropertyToID("_GaussTexture"));
+
+            // ------------------------------------------------------------ 
+            // blur texture -> combine texture
+            // ------------------------------------------------------------
+
+            // combineテクスチャー
+            TextureHandle combineTextureHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, "_CombineTexture", true, FilterMode.Bilinear);
+
+            // bloom texture RT -> camera color RT
+            using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
+            {
+                // Set tempRT for read
+                builder.UseTexture(cameraColorTextureHandler, AccessFlags.Read);
+                // Set camera color RT for write
+                builder.SetRenderAttachment(combineTextureHandle, 0, AccessFlags.Write);
+
+                // Resources/References for pass execution
+                // Blit source texture
+                passData.sourceTextureHandle = cameraColorTextureHandler;
+                passData.material = material;
+
+                builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
+                {
+                    RasterCommandBuffer cmd = graphContext.cmd;
+                    Blitter.BlitTexture(cmd, passData.sourceTextureHandle, new Vector4(1, 1, 0, 0), passData.material, 2);
+                });
+            }
 
             // ------------------------------------------------------------ 
             // combineTextureHandle texture -> camera color texture
@@ -197,13 +204,13 @@ public class SSRCubeMapFeature : ScriptableRendererFeature
             using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass(passName, out PassData passData, this.profilingSampler))
             {
                 // Set tempRT for read
-                builder.UseTexture(cubeMapTextureHandle, AccessFlags.Read);
+                builder.UseTexture(combineTextureHandle, AccessFlags.Read);
                 // Set camera color RT for write
                 builder.SetRenderAttachment(cameraColorTextureHandler, 0, AccessFlags.Write);
 
                 // Resources/References for pass execution
                 // Blit source texture
-                passData.sourceTextureHandle = cubeMapTextureHandle;
+                passData.sourceTextureHandle = combineTextureHandle;
                 passData.material = null;
 
                 builder.SetRenderFunc((PassData passData, RasterGraphContext graphContext) =>
